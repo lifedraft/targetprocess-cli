@@ -1,6 +1,6 @@
 module github.com/lifedraft/targetprocess-cli
 
-go 1.23.0
+go 1.24
 
 require (
 	github.com/hashicorp/go-retryablehttp v0.7.8
