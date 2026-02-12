@@ -37,6 +37,25 @@ func newGetCmd(f *cmdutil.Factory) *cli.Command {
 			if key == "" {
 				return errors.New("key argument is required (valid keys: domain, token)")
 			}
+			if key == "token" {
+				cfg, err := internalconfig.Load(f.ConfigPath)
+				if err != nil {
+					return err
+				}
+				configured := cfg.Token != ""
+				if cmdutil.IsJSON(cmd) {
+					return output.PrintJSON(os.Stdout, map[string]any{
+						"configured": configured,
+						"source":     string(cfg.TokenSource),
+					})
+				}
+				if configured {
+					fmt.Printf("Token is configured (source: %s)\n", cfg.TokenSource)
+				} else {
+					fmt.Println("Token is not configured")
+				}
+				return nil
+			}
 			val, err := internalconfig.Get(f.ConfigPath, key)
 			if err != nil {
 				return err
@@ -61,6 +80,23 @@ func newSetCmd(f *cmdutil.Factory) *cli.Command {
 			}
 			key := cmd.Args().Get(0)
 			value := cmd.Args().Get(1)
+
+			if key == "token" {
+				source, err := internalconfig.SetToken(f.ConfigPath, value)
+				if err != nil {
+					return err
+				}
+				switch source {
+				case internalconfig.TokenSourceKeyring:
+					fmt.Fprintln(os.Stderr, "Token stored in system keychain")
+				case internalconfig.TokenSourceFile:
+					fmt.Fprintf(os.Stderr, "Warning: keychain unavailable, token stored in plain text at %s\n", internalconfig.DefaultPath())
+				case internalconfig.TokenSourceNone, internalconfig.TokenSourceEnv:
+					// Not reachable from SetToken, but satisfy exhaustive check.
+				}
+				return nil
+			}
+
 			if err := internalconfig.Set(f.ConfigPath, key, value); err != nil {
 				return err
 			}
@@ -81,14 +117,16 @@ func newListCmd(f *cmdutil.Factory) *cli.Command {
 				return err
 			}
 			token := redactToken(cfg.Token)
+			source := string(cfg.TokenSource)
 			if cmdutil.IsJSON(cmd) {
 				return output.PrintJSON(os.Stdout, map[string]string{
-					"domain": cfg.Domain,
-					"token":  token,
+					"domain":       cfg.Domain,
+					"token":        token,
+					"token_source": source,
 				})
 			}
 			fmt.Printf("domain: %s\n", cfg.Domain)
-			fmt.Printf("token:  %s\n", token)
+			fmt.Printf("token:  %s (source: %s)\n", token, source)
 			return nil
 		},
 	}
