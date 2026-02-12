@@ -38,6 +38,7 @@ The CLI wraps both the v1 and v2 Targetprocess APIs behind a handful of commands
 - **`tp inspect`** — Explore the API. List entity types, browse properties, discover what's available.
 - **`tp api`** — Escape hatch. Hit any API endpoint directly.
 - **`tp cheatsheet`** — Print a compact reference card with syntax and examples.
+- **`tp bug-report`** — Print diagnostic info for bug reports, or open a pre-filled GitHub issue.
 
 ## Quick examples
 
@@ -94,6 +95,16 @@ rm "$(which tp)"
 ```
 
 To also remove your config: `rm -rf ~/.config/tp`
+
+## Found a bug?
+
+Run `tp bug-report` to grab your environment info, or go straight to filing an issue:
+
+```bash
+tp bug-report --mode open
+```
+
+This opens a GitHub issue with your environment details already filled in — you just describe what went wrong.
 
 ## License
 

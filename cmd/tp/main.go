@@ -10,6 +10,7 @@ import (
 	"github.com/urfave/cli/v3"
 
 	apicmd "github.com/lifedraft/targetprocess-cli/internal/cmd/api"
+	"github.com/lifedraft/targetprocess-cli/internal/cmd/bugreport"
 	cheatsht "github.com/lifedraft/targetprocess-cli/internal/cmd/cheatsheet"
 	configcmd "github.com/lifedraft/targetprocess-cli/internal/cmd/config"
 	"github.com/lifedraft/targetprocess-cli/internal/cmd/entity"
@@ -21,7 +22,18 @@ import (
 var version = "dev"
 
 func main() {
+	os.Exit(run())
+}
+
+func run() (exitCode int) {
 	f := &cmdutil.Factory{}
+
+	defer func() {
+		if r := recover(); r != nil {
+			bugreport.HandlePanic(f, version, r)
+			exitCode = 2
+		}
+	}()
 
 	root := &cli.Command{
 		Name:    "tp",
@@ -49,6 +61,7 @@ func main() {
 			apicmd.NewCmd(f),
 			configcmd.NewCmd(f),
 			cheatsht.NewCmd(f),
+			bugreport.NewCmd(f, version),
 		},
 	}
 
@@ -58,9 +71,10 @@ func main() {
 	cancel()
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			os.Exit(130)
+			return 130
 		}
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
