@@ -9,11 +9,18 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 )
+
+// validEntityType matches alphanumeric entity type names (e.g., "UserStory", "Bug").
+var validEntityType = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*$`)
+
+const maxResponseSize = 50 * 1024 * 1024 // 50 MB
 
 // Entity represents a generic TP entity as a flexible map.
 type Entity = map[string]any
@@ -41,6 +48,7 @@ func NewClient(baseURL, token string, debug bool) *Client {
 	rc := retryablehttp.NewClient()
 	rc.RetryMax = 3
 	rc.Logger = nil
+	rc.HTTPClient.Timeout = 60 * time.Second
 
 	if !strings.HasPrefix(baseURL, "http") {
 		baseURL = "https://" + baseURL
@@ -66,7 +74,7 @@ func (c *Client) buildURL(path string, params url.Values) string {
 
 func (c *Client) request(ctx context.Context, method, fullURL string, body io.Reader) ([]byte, error) {
 	if c.Debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: %s %s\n", method, fullURL)
+		fmt.Fprintf(os.Stderr, "DEBUG: %s %s\n", method, redactToken(fullURL))
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
@@ -85,9 +93,12 @@ func (c *Client) request(ctx context.Context, method, fullURL string, body io.Re
 	}
 	defer resp.Body.Close()
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize+1))
 	if err != nil {
 		return nil, fmt.Errorf("reading response: %w", err)
+	}
+	if int64(len(data)) > maxResponseSize {
+		return nil, fmt.Errorf("response too large (exceeded %d bytes)", maxResponseSize)
 	}
 
 	if c.Debug {
@@ -95,9 +106,37 @@ func (c *Client) request(ctx context.Context, method, fullURL string, body io.Re
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(data)}
+		body := string(data)
+		const maxErrorBody = 2000
+		if len(body) > maxErrorBody {
+			body = body[:maxErrorBody] + "... (truncated)"
+		}
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: body}
 	}
 	return data, nil
+}
+
+// redactToken removes all access_token values from a URL for safe logging.
+func redactToken(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	q := u.Query()
+	if q.Has("access_token") {
+		q.Del("access_token")
+		q.Set("access_token", "[REDACTED]")
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// ValidateEntityType checks that an entity type name is safe for use in URL paths.
+func ValidateEntityType(entityType string) error {
+	if !validEntityType.MatchString(entityType) {
+		return fmt.Errorf("invalid entity type %q: must contain only letters and digits and start with a letter", entityType)
+	}
+	return nil
 }
 
 func (c *Client) do(ctx context.Context, method, path string, params url.Values, body io.Reader) ([]byte, error) {
@@ -123,14 +162,14 @@ func (c *Client) SearchEntities(ctx context.Context, entityType, where string, i
 	path := fmt.Sprintf("/api/v1/%ss", entityType)
 	data, err := c.do(ctx, http.MethodGet, path, params, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("searching %s entities: %w", entityType, err)
 	}
 
 	var resp struct {
 		Items []Entity `json:"Items"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
+		return nil, fmt.Errorf("parsing search response for %s: %w", entityType, err)
 	}
 	return resp.Items, nil
 }
@@ -145,12 +184,12 @@ func (c *Client) GetEntity(ctx context.Context, entityType string, id int, inclu
 	path := fmt.Sprintf("/api/v1/%ss/%d", entityType, id)
 	data, err := c.do(ctx, http.MethodGet, path, params, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting %s/%d: %w", entityType, id, err)
 	}
 
 	var entity Entity
 	if err := json.Unmarshal(data, &entity); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
+		return nil, fmt.Errorf("parsing response for %s/%d: %w", entityType, id, err)
 	}
 	return entity, nil
 }
@@ -165,12 +204,12 @@ func (c *Client) CreateEntity(ctx context.Context, entityType string, fields map
 	path := fmt.Sprintf("/api/v1/%ss", entityType)
 	data, err := c.do(ctx, http.MethodPost, path, nil, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating %s: %w", entityType, err)
 	}
 
 	var entity Entity
 	if err := json.Unmarshal(data, &entity); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
+		return nil, fmt.Errorf("parsing create response for %s: %w", entityType, err)
 	}
 	return entity, nil
 }
@@ -185,12 +224,12 @@ func (c *Client) UpdateEntity(ctx context.Context, entityType string, id int, fi
 	path := fmt.Sprintf("/api/v1/%ss/%d", entityType, id)
 	data, err := c.do(ctx, http.MethodPost, path, nil, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("updating %s/%d: %w", entityType, id, err)
 	}
 
 	var entity Entity
 	if err := json.Unmarshal(data, &entity); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
+		return nil, fmt.Errorf("parsing update response for %s/%d: %w", entityType, id, err)
 	}
 	return entity, nil
 }

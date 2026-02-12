@@ -116,22 +116,22 @@ var searchPresets = map[string]preset{
 	},
 }
 
-// presetNames returns all preset names sorted alphabetically.
-func presetNames() []string {
+// sortedPresetNames is the sorted list of preset names, computed once.
+var sortedPresetNames = func() []string {
 	names := make([]string, 0, len(searchPresets))
 	for name := range searchPresets {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	return names
-}
+}()
 
 // applyPreset resolves a preset name into a full preset struct.
 // If where is also provided, the preset where and the extra where are combined with " and ".
 func applyPreset(presetName, where string) (preset, error) {
 	p, ok := searchPresets[presetName]
 	if !ok {
-		return preset{}, fmt.Errorf("unknown preset %q, valid presets: %v", presetName, presetNames())
+		return preset{}, fmt.Errorf("unknown preset %q, valid presets: %v", presetName, sortedPresetNames)
 	}
 	if where != "" {
 		p.Where = p.Where + " and " + where
@@ -160,7 +160,7 @@ func newPresetsCmd() *cli.Command {
 					Select      string `json:"select,omitempty"`
 					OrderBy     string `json:"orderBy,omitempty"`
 				}
-				names := presetNames()
+				names := sortedPresetNames
 				presets := make([]jsonPreset, len(names))
 				for i, name := range names {
 					p := searchPresets[name]
@@ -173,7 +173,7 @@ func newPresetsCmd() *cli.Command {
 
 			tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(tw, "NAME\tDESCRIPTION\tWHERE\n")
-			for _, name := range presetNames() {
+			for _, name := range sortedPresetNames {
 				p := searchPresets[name]
 				fmt.Fprintf(tw, "%s\t%s\t%s\n", name, p.Description, p.Where)
 			}

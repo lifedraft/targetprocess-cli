@@ -1,6 +1,8 @@
 package cmdutil
 
 import (
+	"sync"
+
 	"github.com/urfave/cli/v3"
 
 	"github.com/lifedraft/targetprocess-cli/internal/api"
@@ -12,37 +14,37 @@ type Factory struct {
 	ConfigPath string
 	Debug      bool
 
-	cfg    *config.Config
-	client *api.Client
+	cfgOnce    sync.Once
+	cfg        *config.Config
+	cfgErr     error
+	clientOnce sync.Once
+	client     *api.Client
+	clientErr  error
 }
 
 // Config returns the loaded configuration, caching after first load.
 func (f *Factory) Config() (*config.Config, error) {
-	if f.cfg != nil {
-		return f.cfg, nil
-	}
-	cfg, err := config.Load(f.ConfigPath)
-	if err != nil {
-		return nil, err
-	}
-	f.cfg = cfg
-	return cfg, nil
+	f.cfgOnce.Do(func() {
+		f.cfg, f.cfgErr = config.Load(f.ConfigPath)
+	})
+	return f.cfg, f.cfgErr
 }
 
 // Client returns an API client, creating one if needed.
 func (f *Factory) Client() (*api.Client, error) {
-	if f.client != nil {
-		return f.client, nil
-	}
-	cfg, err := f.Config()
-	if err != nil {
-		return nil, err
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	f.client = api.NewClient(cfg.Domain, cfg.Token, f.Debug)
-	return f.client, nil
+	f.clientOnce.Do(func() {
+		cfg, err := f.Config()
+		if err != nil {
+			f.clientErr = err
+			return
+		}
+		if err := cfg.Validate(); err != nil {
+			f.clientErr = err
+			return
+		}
+		f.client = api.NewClient(cfg.Domain, cfg.Token, f.Debug)
+	})
+	return f.client, f.clientErr
 }
 
 // OutputFlag returns the standard --output flag for use in commands.

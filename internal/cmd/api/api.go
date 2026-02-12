@@ -60,10 +60,13 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 			}
 
 			var parsed any
-			if err := json.Unmarshal(data, &parsed); err != nil {
-				// Not valid JSON, print raw
+			if !json.Valid(data) {
+				// Not valid JSON, print raw output (not an error for raw API calls)
 				fmt.Fprintln(os.Stdout, string(data))
-				return err
+				return nil
+			}
+			if err = json.Unmarshal(data, &parsed); err != nil {
+				return fmt.Errorf("parsing JSON response: %w", err)
 			}
 
 			return output.PrintJSON(os.Stdout, parsed)

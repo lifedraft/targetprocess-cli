@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/urfave/cli/v3"
@@ -39,6 +40,9 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 
 			entityType := cmd.String("type")
 			projectID := cmd.Int("project-id")
+			if projectID <= 0 {
+				return fmt.Errorf("project ID must be positive, got %d", projectID)
+			}
 
 			fields := map[string]any{
 				"Name":    cmd.String("name"),

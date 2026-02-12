@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -99,6 +100,10 @@ State helpers: entityState.isFinal==true, entityState.isInitial==true`,
 				return err
 			}
 
+			if vErr := api.ValidateEntityType(entityType); vErr != nil {
+				return vErr
+			}
+
 			client, err := f.Client()
 			if err != nil {
 				return err
@@ -130,12 +135,21 @@ State helpers: entityState.isFinal==true, entityState.isInitial==true`,
 			}
 
 			// Collection query
+			take := cmd.Int("take")
+			if take < 0 || take > 1000 {
+				return fmt.Errorf("take must be between 0 and 1000, got %d", take)
+			}
+			skip := cmd.Int("skip")
+			if skip < 0 {
+				return fmt.Errorf("skip must be non-negative, got %d", skip)
+			}
+
 			params := api.V2Params{
 				Where:   cmd.String("where"),
 				Select:  selectExpr,
 				OrderBy: cmd.String("order"),
-				Take:    cmd.Int("take"),
-				Skip:    cmd.Int("skip"),
+				Take:    take,
+				Skip:    skip,
 			}
 
 			if cmd.Bool("dry-run") {
@@ -167,9 +181,16 @@ func parseEntityArg(arg string) (entityType string, id int, err error) {
 		return "", 0, errors.New("entity type cannot be empty")
 	}
 	if len(parts) == 2 {
-		id, err = strconv.Atoi(parts[1])
+		idStr := parts[1]
+		if idStr == "" {
+			return "", 0, errors.New("entity ID cannot be empty (got trailing slash)")
+		}
+		id, err = strconv.Atoi(idStr)
 		if err != nil {
-			return "", 0, fmt.Errorf("invalid entity ID %q: must be an integer", parts[1])
+			return "", 0, fmt.Errorf("invalid entity ID %q: must be an integer", idStr)
+		}
+		if id <= 0 {
+			return "", 0, fmt.Errorf("invalid entity ID %d: must be positive", id)
 		}
 		return entityType, id, nil
 	}
@@ -178,33 +199,36 @@ func parseEntityArg(arg string) (entityType string, id int, err error) {
 
 // printResponse handles output for any v2 response (single entity or collection).
 func printResponse(cmd *cli.Command, data []byte) error {
+	// Parse once into a generic structure.
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return fmt.Errorf("parsing response: %w", err)
+	}
+
 	if cmdutil.IsJSON(cmd) {
-		var parsed any
-		if err := json.Unmarshal(data, &parsed); err != nil {
-			return fmt.Errorf("parsing response: %w", err)
-		}
 		return output.PrintJSON(os.Stdout, parsed)
 	}
 
-	// Try to parse as collection first
-	var resp struct {
-		Items []map[string]any `json:"items"`
-	}
-	if err := json.Unmarshal(data, &resp); err == nil && resp.Items != nil {
-		if len(resp.Items) == 0 {
-			fmt.Fprintln(os.Stdout, "No results found.")
+	// Check if it looks like a collection response (has "items" key).
+	if rawItems, ok := parsed["items"]; ok {
+		if items, ok := rawItems.([]any); ok {
+			if len(items) == 0 {
+				fmt.Fprintln(os.Stdout, "No results found.")
+				return nil
+			}
+			itemMaps := make([]map[string]any, 0, len(items))
+			for _, item := range items {
+				if m, ok := item.(map[string]any); ok {
+					itemMaps = append(itemMaps, m)
+				}
+			}
+			printDynamicTable(itemMaps)
 			return nil
 		}
-		printDynamicTable(resp.Items)
-		return nil
 	}
 
 	// Single entity
-	var entity map[string]any
-	if err := json.Unmarshal(data, &entity); err != nil {
-		return fmt.Errorf("parsing response: %w", err)
-	}
-	output.PrintEntity(os.Stdout, entity)
+	output.PrintEntity(os.Stdout, parsed)
 	return nil
 }
 
@@ -268,10 +292,17 @@ func formatValue(v any) string {
 		}
 		return strings.Join(parts, ", ")
 	case float64:
-		if val == float64(int64(val)) {
+		if math.IsNaN(val) || math.IsInf(val, 0) {
+			return fmt.Sprintf("%g", val)
+		}
+		// Use 2^53 (max safe integer for float64) to avoid precision loss
+		const maxSafeInt = 1 << 53
+		if val >= -maxSafeInt && val <= maxSafeInt && val == float64(int64(val)) {
 			return strconv.FormatInt(int64(val), 10)
 		}
 		return fmt.Sprintf("%g", val)
+	case bool:
+		return strconv.FormatBool(val)
 	default:
 		return fmt.Sprintf("%v", val)
 	}

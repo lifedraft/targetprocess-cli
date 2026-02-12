@@ -51,6 +51,15 @@ type fieldMeta struct {
 	Description string `xml:"Description,attr"`
 }
 
+// allFields returns all field metadata (values, references, collections) combined.
+func (tp *typeProperties) allFields() []fieldMeta {
+	all := make([]fieldMeta, 0, len(tp.Values)+len(tp.References)+len(tp.Collections))
+	all = append(all, tp.Values...)
+	all = append(all, tp.References...)
+	all = append(all, tp.Collections...)
+	return all
+}
+
 func NewCmd(f *cmdutil.Factory) *cli.Command {
 	return &cli.Command{
 		Name:  "inspect",
@@ -132,7 +141,7 @@ func newPropertiesCmd(f *cmdutil.Factory) *cli.Command {
 				return fmt.Errorf("parsing type metadata XML: %w", err)
 			}
 
-			allFields := append(append(meta.Properties.Values, meta.Properties.References...), meta.Properties.Collections...)
+			allFields := meta.Properties.allFields()
 
 			if cmdutil.IsJSON(cmd) {
 				fields := make([]map[string]string, len(allFields))
@@ -283,7 +292,7 @@ func newDetailsCmd(f *cmdutil.Factory) *cli.Command {
 				return fmt.Errorf("parsing type metadata XML: %w", err)
 			}
 
-			allFields := append(append(meta.Properties.Values, meta.Properties.References...), meta.Properties.Collections...)
+			allFields := meta.Properties.allFields()
 			for _, f := range allFields {
 				if f.Name == propName {
 					detail := map[string]any{

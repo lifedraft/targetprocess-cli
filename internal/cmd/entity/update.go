@@ -3,6 +3,7 @@ package entity
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/urfave/cli/v3"
@@ -40,6 +41,9 @@ func newUpdateCmd(f *cmdutil.Factory) *cli.Command {
 
 			entityType := cmd.String("type")
 			id := cmd.Int("id")
+			if id <= 0 {
+				return fmt.Errorf("entity ID must be positive, got %d", id)
+			}
 
 			fields := map[string]any{}
 

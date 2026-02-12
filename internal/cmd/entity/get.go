@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
@@ -37,6 +38,9 @@ func newGetCmd(f *cmdutil.Factory) *cli.Command {
 
 			entityType := cmd.String("type")
 			id := cmd.Int("id")
+			if id <= 0 {
+				return fmt.Errorf("entity ID must be positive, got %d", id)
+			}
 
 			var includes []string
 			if inc := cmd.String("include"); inc != "" {

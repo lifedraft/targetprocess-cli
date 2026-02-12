@@ -102,7 +102,7 @@ func Save(path string, cfg *Config) error {
 		path = DefaultPath()
 	}
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
 	data, err := goyaml.Marshal(cfg)

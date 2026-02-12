@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 
 	"github.com/urfave/cli/v3"
 
@@ -50,7 +52,14 @@ func main() {
 		},
 	}
 
-	if err := root.Run(context.Background(), os.Args); err != nil {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+
+	err := root.Run(ctx, os.Args)
+	cancel()
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			os.Exit(130)
+		}
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
+	"io"
 	"os"
-	"strconv"
+	"sort"
 	"strings"
 
 	"github.com/urfave/cli/v3"
@@ -81,6 +80,9 @@ func newSearchCmd(f *cmdutil.Factory) *cli.Command {
 			}
 
 			entityType := cmd.String("type")
+			if vErr := api.ValidateEntityType(entityType); vErr != nil {
+				return vErr
+			}
 			where := cmd.String("where")
 			selectExpr := cmd.String("select")
 			take := cmd.Int("take")
@@ -108,30 +110,31 @@ func newSearchCmd(f *cmdutil.Factory) *cli.Command {
 				}
 			}
 
-			// Build v2 query parameters
-			params := url.Values{}
-			if where != "" {
-				params.Set("where", where)
-			}
-			if selectExpr != "" {
-				params.Set("select", "{"+selectExpr+"}")
-			}
-			if take > 0 {
-				params.Set("take", strconv.Itoa(take))
-			}
-			if orderBy != "" {
-				params.Set("orderBy", orderBy)
+			if take < 0 || take > 1000 {
+				return fmt.Errorf("take must be between 0 and 1000, got %d", take)
 			}
 
-			// Build the v2 API path (singular entity type, no trailing 's')
-			path := fmt.Sprintf("/api/v2/%s", entityType)
-			if len(params) > 0 {
-				path = path + "?" + params.Encode()
+			// Warn about dot-paths missing 'as' aliases (silently dropped by API)
+			if warn := api.WarnSelectDotPaths(selectExpr); warn != "" {
+				fmt.Fprint(os.Stderr, warn)
 			}
 
-			data, err := client.Raw(ctx, http.MethodGet, path, nil)
+			params := api.V2Params{
+				Where:   where,
+				Select:  selectExpr,
+				OrderBy: orderBy,
+				Take:    take,
+			}
+
+			data, err := client.QueryV2(ctx, entityType, params)
 			if err != nil {
-				return err
+				path := fmt.Sprintf("/api/v2/%s", entityType)
+				err = api.EnhanceError(err, path, map[string]string{
+					"where":   params.Where,
+					"select":  params.Select,
+					"orderBy": params.OrderBy,
+				})
+				return fmt.Errorf("search failed: %w", err)
 			}
 
 			// Parse v2 response: {"items": [...], "next": "..."}
@@ -158,7 +161,7 @@ func newSearchCmd(f *cmdutil.Factory) *cli.Command {
 // printV2EntityTable prints entities from the v2 API as a table.
 // v2 returns camelCase keys (id, name) while v1 used PascalCase (Id, Name).
 // This function handles both conventions.
-func printV2EntityTable(w *os.File, entities []api.Entity) {
+func printV2EntityTable(w io.Writer, entities []api.Entity) {
 	if len(entities) == 0 {
 		fmt.Fprintln(w, "No results found.")
 		return
@@ -207,6 +210,9 @@ func getNestedName(e api.Entity, aliasKey, nestedObjKey string) any {
 	// v2 with select alias returns flat keys (e.g., "state" from "entityState.name as state")
 	if v, ok := e[aliasKey]; ok {
 		return v
+	}
+	if nestedObjKey == "" {
+		return ""
 	}
 	// v1-style nested object (e.g., "EntityState": {"Name": "Open"})
 	if obj, ok := e[nestedObjKey].(map[string]any); ok {
@@ -278,30 +284,46 @@ func detectColumns(sample api.Entity) []column {
 		"type": true, "ResourceType": true, "entityType": true, "EntityType": true,
 		"state": true, "entityState": true, "EntityState": true,
 	}
+
+	// Collect and sort unknown keys for deterministic column order
+	var extraKeys []string
 	for key := range sample {
 		if !knownKeys[key] {
-			k := key // capture
-			cols = append(cols, column{label: k, extract: func(e api.Entity) any {
-				v := e[k]
-				// If it's a nested object, try to extract a name
-				if obj, ok := v.(map[string]any); ok {
-					if n, ok := obj["name"]; ok {
-						return n
-					}
-					if n, ok := obj["Name"]; ok {
-						return n
-					}
-				}
-				return v
-			}})
+			extraKeys = append(extraKeys, key)
 		}
 	}
+	sort.Strings(extraKeys)
 
-	// If no columns were detected at all, fall back to all keys
+	for _, k := range extraKeys {
+		key := k // capture for closure
+		cols = append(cols, column{label: key, extract: func(e api.Entity) any {
+			v := e[key]
+			if v == nil {
+				return ""
+			}
+			// If it's a nested object, try to extract a name
+			if obj, ok := v.(map[string]any); ok {
+				if n, ok := obj["name"]; ok {
+					return n
+				}
+				if n, ok := obj["Name"]; ok {
+					return n
+				}
+			}
+			return v
+		}})
+	}
+
+	// If no columns were detected at all, fall back to all keys sorted
 	if len(cols) == 0 {
+		var allKeys []string
 		for key := range sample {
-			k := key
-			cols = append(cols, column{label: k, extract: func(e api.Entity) any { return e[k] }})
+			allKeys = append(allKeys, key)
+		}
+		sort.Strings(allKeys)
+		for _, k := range allKeys {
+			key := k
+			cols = append(cols, column{label: key, extract: func(e api.Entity) any { return e[key] }})
 		}
 	}
 

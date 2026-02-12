@@ -8,6 +8,15 @@ import (
 	"strings"
 )
 
+// Precompiled regexes for error pattern matching and select validation.
+var (
+	regexNow           = regexp.MustCompile(`\bNow\b`)
+	regexColonSubfield = regexp.MustCompile(`\{[a-zA-Z]+:\{`)
+	regexTokenPattern  = regexp.MustCompile(`\b([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)+)\b`)
+	regexAsPattern     = regexp.MustCompile(`\b([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)+)\s+as\b`)
+	regexParenPattern  = regexp.MustCompile(`\([^)]*\)`)
+)
+
 // errorPattern defines a known API error pattern and its suggested fix.
 type errorPattern struct {
 	// Name is a short identifier for the pattern (for debugging/logging).
@@ -88,7 +97,7 @@ var knownPatterns = []errorPattern{
 			}
 			where := params["where"]
 			// Check if the where clause uses "Now" (case-sensitive, as a word boundary).
-			return regexp.MustCompile(`\bNow\b`).MatchString(where)
+			return regexNow.MatchString(where)
 		},
 		Hint: "Use 'Today' instead of 'Now'. The v2 API does not recognize 'Now'.",
 	},
@@ -175,7 +184,7 @@ var knownPatterns = []errorPattern{
 			// but if they somehow got an error and we see this pattern, warn about it.
 			selectParam := params["select"]
 			return apiErr.StatusCode >= 400 &&
-				regexp.MustCompile(`\{[a-zA-Z]+:\{`).MatchString(selectParam)
+				regexColonSubfield.MatchString(selectParam)
 		},
 		Hint: "The {field:{subfield}} syntax can return incorrect data. Use field.subfield as alias instead. Example: entityState.name as state",
 	},
@@ -196,6 +205,14 @@ func endsWithPlural(path string) bool {
 	// Skip if it's a numeric ID segment.
 	if last != "" && last[0] >= '0' && last[0] <= '9' {
 		return false
+	}
+	// Common entity types that end in 's' but are not plurals
+	lower := strings.ToLower(last)
+	notPlural := []string{"process", "status", "address", "access", "progress", "class", "analysis"}
+	for _, np := range notPlural {
+		if lower == np {
+			return false
+		}
 	}
 	return strings.HasSuffix(last, "s") || strings.HasSuffix(last, "S")
 }
@@ -234,27 +251,21 @@ func WarnSelectDotPaths(selectExpr string) string {
 		return ""
 	}
 
-	// tokenPattern matches tokens like "entityState.name" (word.word, possibly chained).
-	tokenPattern := regexp.MustCompile(`\b([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)+)\b`)
-	// asPattern checks if a dot-path token is followed by "as" (with optional whitespace).
-	asPattern := regexp.MustCompile(`\b([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)+)\s+as\b`)
-
-	allDotPaths := tokenPattern.FindAllString(selectExpr, -1)
+	allDotPaths := regexTokenPattern.FindAllString(selectExpr, -1)
 	if len(allDotPaths) == 0 {
 		return ""
 	}
 
 	aliased := make(map[string]bool)
-	for _, match := range asPattern.FindAllStringSubmatch(selectExpr, -1) {
+	for _, match := range regexAsPattern.FindAllStringSubmatch(selectExpr, -1) {
 		aliased[match[1]] = true
 	}
 
 	// Find dot-paths that appear inside parentheses (e.g., .where(entityState.isFinal==true))
 	// These are collection sub-expressions and should not trigger warnings.
 	insideParens := make(map[string]bool)
-	parenPattern := regexp.MustCompile(`\([^)]*\)`)
-	for _, match := range parenPattern.FindAllString(selectExpr, -1) {
-		for _, dp := range tokenPattern.FindAllString(match, -1) {
+	for _, match := range regexParenPattern.FindAllString(selectExpr, -1) {
+		for _, dp := range regexTokenPattern.FindAllString(match, -1) {
 			insideParens[dp] = true
 		}
 	}

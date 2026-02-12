@@ -80,18 +80,29 @@ func newListCmd(f *cmdutil.Factory) *cli.Command {
 			if err != nil {
 				return err
 			}
+			token := redactToken(cfg.Token)
 			if cmdutil.IsJSON(cmd) {
-				return output.PrintJSON(os.Stdout, cfg)
+				return output.PrintJSON(os.Stdout, map[string]string{
+					"domain": cfg.Domain,
+					"token":  token,
+				})
 			}
 			fmt.Printf("domain: %s\n", cfg.Domain)
-			token := cfg.Token
-			if len(token) > 8 {
-				token = token[:4] + "..." + token[len(token)-4:]
-			}
 			fmt.Printf("token:  %s\n", token)
 			return nil
 		},
 	}
+}
+
+// redactToken masks a token for display, showing only the first 4 and last 4 characters.
+func redactToken(token string) string {
+	if len(token) > 8 {
+		return token[:4] + "..." + token[len(token)-4:]
+	}
+	if token != "" {
+		return "[REDACTED]"
+	}
+	return ""
 }
 
 func newPathCmd() *cli.Command {
