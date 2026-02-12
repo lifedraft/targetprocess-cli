@@ -1,4 +1,4 @@
-.PHONY: all validate tidy vet lint security test test-cover build clean
+.PHONY: all validate tidy vet lint security test test-cover test-integration test-all capture-testdata build clean
 
 BIN       := tp
 CMD       := ./cmd/tp
@@ -35,6 +35,14 @@ test:
 
 test-cover: test
 	go tool cover -func=$(COVER_OUT)
+
+test-integration:
+	go test -tags integration -v -count=1 -timeout=5m ./test/integration/
+
+test-all: test test-integration
+
+capture-testdata:
+	go run ./cmd/tp-capture
 
 ## ── Build ─────────────────────────────────────────────────────────────
 

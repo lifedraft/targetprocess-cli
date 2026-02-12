@@ -1,0 +1,305 @@
+{
+  "types": [
+    {
+      "description": "Base entity for Epic, Feature, User Story, Task, Bug, Test Plan, Test Plan Run, Request. It can be assigned to people and has workflow.",
+      "name": "Assignable"
+    },
+    {
+      "description": "Effort for Assignable by Role and User.",
+      "name": "AssignedEffort"
+    },
+    {
+      "description": "An assignment of the User Story, Task, Bug, etc. with a specific Role and user.",
+      "name": "Assignment"
+    },
+    {
+      "description": "A file (image, archive, whatever) attached to Entity.",
+      "name": "Attachment"
+    },
+    {
+      "description": "Bug or defect (error, flaw, mistake, failure or fault in a computer program). Can relate to User Story. Can be assigned to Release and Iteration.",
+      "name": "Bug"
+    },
+    {
+      "description": "Build in a project. Bugs and source code Revisions can be assigned to Build.",
+      "name": "Build"
+    },
+    {
+      "description": "Custom BuildVersion (Assignable) entity",
+      "name": "BuildVersion"
+    },
+    {
+      "description": "Custom BuildVersionBug entity",
+      "name": "BuildVersionBug"
+    },
+    {
+      "description": "Custom BuildVersionFeature entity",
+      "name": "BuildVersionFeature"
+    },
+    {
+      "description": "Custom BuildVersionRequest entity",
+      "name": "BuildVersionRequest"
+    },
+    {
+      "description": "Custom BuildVersionTask entity",
+      "name": "BuildVersionTask"
+    },
+    {
+      "description": "Custom BuildVersionUserStory entity",
+      "name": "BuildVersionUserStory"
+    },
+    {
+      "description": "Can be added to almost any Entity.",
+      "name": "Comment"
+    },
+    {
+      "description": "Used to limit Requests visibility in Help Desk. Requesters from Company A will not see Requests from Company B.",
+      "name": "Company"
+    },
+    {
+      "description": "Context contains information about logged User, Culture, selected Projects and Processes.",
+      "name": "Context"
+    },
+    {
+      "description": "Special type of work you can track Time against.",
+      "name": "CustomActivity"
+    },
+    {
+      "description": "Custom field is an entity extension which is declared on a process level. As a result entity can contain declared custom field values. Custom fields has following types: Text, DropDown, CheckBox, Url, Date, RichText, Number, Entity. See reference for more details.",
+      "name": "CustomField"
+    },
+    {
+      "description": "Custom business rules defined by user.",
+      "name": "CustomRule"
+    },
+    {
+      "description": "Container for entity permissions",
+      "name": "EntityPermission"
+    },
+    {
+      "description": "State of Entity. Collection of EntityStates form Workflow for Entity. For example, Bug has four EntityStates by default: Open, Fixed, Invalid and Done.",
+      "name": "EntityState"
+    },
+    {
+      "description": "Type of Entity. For example: Bug, TestCase, Project.",
+      "name": "EntityType"
+    },
+    {
+      "description": "A high-level scope of work which contains Features. Can be assigned to Release. Can't be assigned to Iteration.",
+      "name": "Epic"
+    },
+    {
+      "description": "A high-level requirement which contains user stories. Can be assigned to Release. Can't be assigned to Iteration.",
+      "name": "Feature"
+    },
+    {
+      "description": "Base entity for Assignable, Build, Impediment, Iteration, Program, Project, Release, Test Case, Test Plan, Bug, Feature, Request, Task, Test Plan Run, User Story.",
+      "name": "General"
+    },
+    {
+      "description": "Relation between user and following entity.",
+      "name": "GeneralFollower"
+    },
+    {
+      "description": "Base entity for User and Requester.",
+      "name": "GeneralUser"
+    },
+    {
+      "description": "Global Application Settings.",
+      "name": "GlobalSettings"
+    },
+    {
+      "description": "Anything that prevents a team member from working as efficiently as possible. Impediment can relate to Task, User Story, Bug or Feature.",
+      "name": "Impediment"
+    },
+    {
+      "description": "Inbound relation for Assignable.",
+      "name": "InboundAssignable"
+    },
+    {
+      "description": "A single iteration results in an increment(s) of product functionality. Iteration should relate to a Release.",
+      "name": "Iteration"
+    },
+    {
+      "description": "Email message from email integration",
+      "name": "Message"
+    },
+    {
+      "description": "Represents reference to downloaded message",
+      "name": "MessageUid"
+    },
+    {
+      "description": "Milestones for projects",
+      "name": "Milestone"
+    },
+    {
+      "description": "Milestone assigned to a project",
+      "name": "MilestoneProject"
+    },
+    {
+      "description": "Outbound relation for Assignable.",
+      "name": "OutboundAssignable"
+    },
+    {
+      "description": "Custom Package (Assignable) entity",
+      "name": "Package"
+    },
+    {
+      "description": "A high-level scope of work which contains Epics and Features. Can be assigned to Release. Can't be assigned to Iteration.",
+      "name": "PortfolioEpic"
+    },
+    {
+      "description": "Priority of User Story, Bug or Feature. Examples: Must Have, Nice to Have.",
+      "name": "Priority"
+    },
+    {
+      "description": "Set of practices, terms, workflows and custom fields that can be applied to Project.",
+      "name": "Process"
+    },
+    {
+      "description": "Several Projects can be grouped into a Program.",
+      "name": "Program"
+    },
+    {
+      "description": "Core entity which contains Releases, Features, User Stories, Bugs, etc.",
+      "name": "Project"
+    },
+    {
+      "description": "Any User that is a part of a Project Team.",
+      "name": "ProjectMember"
+    },
+    {
+      "description": "Relation between two Entities.",
+      "name": "Relation"
+    },
+    {
+      "description": "Type of relation between Entities.",
+      "name": "RelationType"
+    },
+    {
+      "description": "Delivering an increment(s) of product functionality to public. Release contains several Iterations.",
+      "name": "Release"
+    },
+    {
+      "description": "Project assigned to a release",
+      "name": "ReleaseProject"
+    },
+    {
+      "description": "Request can represent Idea, Issue or Question from users.",
+      "name": "Request"
+    },
+    {
+      "description": "Represents a requester.",
+      "name": "Requester"
+    },
+    {
+      "description": "Type of request (Idea, Issue or Question).",
+      "name": "RequestType"
+    },
+    {
+      "description": "A single commit into repository. Contains a set of source files.",
+      "name": "Revision"
+    },
+    {
+      "description": "A source file included to Revision.",
+      "name": "RevisionFile"
+    },
+    {
+      "description": "Defines permissions for User.",
+      "name": "Role"
+    },
+    {
+      "description": "Effort for Assignable by Role. For example, User Story can have 5 hours of Developer effort + 3 hours of Tester effort. The total effort will be 8 hours.",
+      "name": "RoleEffort"
+    },
+    {
+      "description": "Defines Role permissions for Entities.",
+      "name": "RoleEntityType"
+    },
+    {
+      "description": "Describe if role can be assigned to entity type in process",
+      "name": "RoleEntityTypeProcessSetting"
+    },
+    {
+      "description": "Severity (badness) of Bug. For example, Blocking, Critical, Small.",
+      "name": "Severity"
+    },
+    {
+      "description": "Tags that can be attached to entities.",
+      "name": "Tag"
+    },
+    {
+      "description": "A small chunk of work, typically less than 16 hours. Task must relate to User Story. It is not possible to create Tasks without User Story.",
+      "name": "Task"
+    },
+    {
+      "description": "Group of people working on some projects.",
+      "name": "Team"
+    },
+    {
+      "description": "Assignment of the Team with a specific State on Assignable. Known as TeamState.",
+      "name": "TeamAssignment"
+    },
+    {
+      "description": "A single iteration results in an increment(s) of product functionality. Team iteration should relate to a Team.",
+      "name": "TeamIteration"
+    },
+    {
+      "description": "Any User that is a part of a Team.",
+      "name": "TeamMember"
+    },
+    {
+      "description": "Any Project in which team participates.",
+      "name": "TeamProject"
+    },
+    {
+      "description": "Beta version: Term in Process. Like Bug, User Story, Feature, etc.",
+      "name": "Term"
+    },
+    {
+      "description": "A set of steps to determine if a product functionality is working correctly. TestCase relates to User Story.",
+      "name": "TestCase"
+    },
+    {
+      "description": "A single Test Case Run. TestCase can be run many times. It is impossible to create a Test Case Run, instead Add Test Case to Test Plan to create a Test Case Run",
+      "name": "TestCaseRun"
+    },
+    {
+      "description": "A group of TestCases. For example, you can create 'Smoke Tests' TestPlan and add TestCases there.",
+      "name": "TestPlan"
+    },
+    {
+      "description": "A single TestPlan Run. TestPlan can have multiple runs by various Iterations, Releases or Builds.",
+      "name": "TestPlanRun"
+    },
+    {
+      "description": "Link between test plan run and test case run. In hierarchical test plan runs each test case run is linked to all parent test plan runs",
+      "name": "TestRunItemHierarchyLink"
+    },
+    {
+      "description": "Single Step of Test Case",
+      "name": "TestStep"
+    },
+    {
+      "description": "A single Test Step Run",
+      "name": "TestStepRun"
+    },
+    {
+      "description": "Spent/Remaining time for Assignable (Task, User Story, Bug, etc.).",
+      "name": "Time"
+    },
+    {
+      "description": "Represents an user. User has Role and can be added to project teams.",
+      "name": "User"
+    },
+    {
+      "description": "A statement of end user requirements in a couple of sentences. User Story can be assigned to Iteration or Release.",
+      "name": "UserStory"
+    },
+    {
+      "description": "Set of states",
+      "name": "Workflow"
+    }
+  ]
+}
+

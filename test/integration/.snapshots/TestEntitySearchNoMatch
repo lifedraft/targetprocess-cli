@@ -1,0 +1,2 @@
+Error: search failed: API error (HTTP 404): no matching simulation for GET /api/v2/NonExistent?access_token=test-token&select=%7Bid%2Cname%7D&take=25
+

@@ -1,0 +1,162 @@
+{
+  "pairs": [
+    {
+      "description": "entity_get",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/UserStory",
+        "query": {
+          "select": "{id}",
+          "take": "1"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": 342348
+            }
+          ],
+          "next": "https://test.tpondemand.com/api/v2/UserStory?select=%7Bid%7D\u0026take=1\u0026skip=1"
+        }
+      }
+    },
+    {
+      "description": "entity_get",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/UserStorys/342348"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "Build": null,
+          "CreateDate": "/Date(1770924091000+0100)/",
+          "Creator": {
+            "FirstName": "Test",
+            "FullName": "Test User",
+            "Id": 994,
+            "LastName": "User",
+            "Login": "testuser",
+            "ResourceType": "GeneralUser"
+          },
+          "CustomFields": [
+            {
+              "Name": "Test Entity 1",
+              "Type": "Number",
+              "Value": null
+            },
+            {
+              "Name": "Test Entity 2",
+              "Type": "DropDown",
+              "Value": "Redacted value"
+            },
+            {
+              "Name": "Test Entity 3",
+              "Type": "DropDown",
+              "Value": null
+            }
+          ],
+          "Description": "Redacted text",
+          "Effort": 0,
+          "EffortCompleted": 0,
+          "EffortToDo": 0,
+          "EndDate": null,
+          "EntityState": {
+            "Id": 1832,
+            "Name": "Open",
+            "NumericPriority": 1,
+            "ResourceType": "EntityState"
+          },
+          "EntityType": {
+            "Id": 4,
+            "IsUnitInHourOnly": false,
+            "Name": "UserStory",
+            "ResourceType": "EntityType"
+          },
+          "EntityVersion": 173467332,
+          "Feature": {
+            "Id": 335661,
+            "Name": "Test Feature 1",
+            "ResourceType": "Feature"
+          },
+          "Id": 342348,
+          "InitialEstimate": 0,
+          "Iteration": null,
+          "LastCommentDate": null,
+          "LastCommentedUser": null,
+          "LastEditor": {
+            "FirstName": "Test",
+            "FullName": "Test User",
+            "Id": 994,
+            "LastName": "User",
+            "Login": "testuser",
+            "ResourceType": "GeneralUser"
+          },
+          "LastStateChangeDate": "/Date(1770924091000+0100)/",
+          "LinkedTestPlan": null,
+          "Milestone": null,
+          "ModifyDate": "/Date(1770924441000+0100)/",
+          "Name": "Test UserStory 1",
+          "NumericPriority": 289123.6562982935,
+          "Owner": {
+            "FirstName": "Test",
+            "FullName": "Test User",
+            "Id": 994,
+            "LastName": "User",
+            "Login": "testuser",
+            "ResourceType": "GeneralUser"
+          },
+          "Package": null,
+          "PlannedEndDate": null,
+          "PlannedStartDate": null,
+          "Priority": {
+            "Id": 3,
+            "Importance": 3,
+            "Name": "Average",
+            "ResourceType": "Priority"
+          },
+          "Progress": 0,
+          "Project": {
+            "Id": 285512,
+            "Name": "Test Project 1",
+            "Process": {
+              "Id": 59,
+              "ResourceType": "Process"
+            },
+            "ResourceType": "Project"
+          },
+          "Release": null,
+          "ResourceType": "UserStory",
+          "ResponsibleTeam": {
+            "Id": 287476,
+            "ResourceType": "TeamAssignment"
+          },
+          "StartDate": null,
+          "Tags": "",
+          "Team": {
+            "EmojiIcon": ":bullettrain_side:",
+            "Id": 242170,
+            "Name": "Test Team 1",
+            "ResourceType": "Team"
+          },
+          "TeamIteration": {
+            "Id": 340949,
+            "Name": "Test TeamIteration 1",
+            "ResourceType": "TeamIteration"
+          },
+          "TimeRemain": 0,
+          "TimeSpent": 0,
+          "Units": "pt"
+        }
+      }
+    }
+  ]
+}

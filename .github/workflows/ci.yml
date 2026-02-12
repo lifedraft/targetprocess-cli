@@ -67,9 +67,22 @@ jobs:
       - name: Test
         run: make test-cover
 
+  test-integration:
+    runs-on: ubuntu-latest
+    needs: [validate]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Integration tests
+        run: make test-integration
+
   build:
     runs-on: ubuntu-latest
-    needs: [lint, security, test]
+    needs: [lint, security, test, test-integration]
     strategy:
       matrix:
         goos: [linux, darwin, windows]

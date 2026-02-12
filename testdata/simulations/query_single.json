@@ -1,0 +1,54 @@
+{
+  "pairs": [
+    {
+      "description": "query_single",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/UserStory",
+        "query": {
+          "select": "{id}",
+          "take": "1"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": 342348
+            }
+          ],
+          "next": "https://test.tpondemand.com/api/v2/UserStory?select=%7Bid%7D\u0026take=1\u0026skip=1"
+        }
+      }
+    },
+    {
+      "description": "query_single",
+      "request": {
+        "method": "GET",
+        "path": "/api/v2/UserStory/342348",
+        "query": {
+          "select": "{id,name,entityState.name as state}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "items": [
+            {
+              "id": 342348,
+              "name": "Test Entity 1",
+              "state": "Open"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

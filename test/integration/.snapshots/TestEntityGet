@@ -1,0 +1,43 @@
+Build:                <nil>
+CreateDate:           /Date(1770924091000+0100)/
+Creator:              994
+CustomFields:         [map[Name:Test Entity 1 Type:Number Value:<nil>] map[Name:Test Entity 2 Type:DropDown Value:Redacted value] map[Name:Test Entity 3 Type:DropDown Value:<nil>]]
+Description:          Redacted text
+Effort:               0
+EffortCompleted:      0
+EffortToDo:           0
+EndDate:              <nil>
+EntityState:          Open
+EntityType:           UserStory
+EntityVersion:        1.73467332e+08
+Feature:              Test Feature 1
+Id:                   342348
+InitialEstimate:      0
+Iteration:            <nil>
+LastCommentDate:      <nil>
+LastCommentedUser:    <nil>
+LastEditor:           994
+LastStateChangeDate:  /Date(1770924091000+0100)/
+LinkedTestPlan:       <nil>
+Milestone:            <nil>
+ModifyDate:           /Date(1770924441000+0100)/
+Name:                 Test UserStory 1
+NumericPriority:      289123.6562982935
+Owner:                994
+Package:              <nil>
+PlannedEndDate:       <nil>
+PlannedStartDate:     <nil>
+Priority:             Average
+Progress:             0
+Project:              Test Project 1
+Release:              <nil>
+ResourceType:         UserStory
+ResponsibleTeam:      287476
+StartDate:            <nil>
+Tags:                 
+Team:                 Test Team 1
+TeamIteration:        Test TeamIteration 1
+TimeRemain:           0
+TimeSpent:            0
+Units:                pt
+

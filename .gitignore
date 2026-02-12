@@ -19,5 +19,8 @@ Thumbs.db
 # Config (may contain credentials)
 .tp.yaml
 
+# Test artifacts
+coverage.out
+
 # Claude Code
 .claude/
