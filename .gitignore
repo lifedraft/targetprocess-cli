@@ -1,0 +1,23 @@
+# Binaries
+/tp
+*.exe
+*.dll
+*.so
+*.dylib
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config (may contain credentials)
+.tp.yaml
+
+# Claude Code
+.claude/

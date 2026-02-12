@@ -1,0 +1,144 @@
+# golangci-lint v2 configuration for targetprocess-cli
+# Run:  golangci-lint run ./...
+# Docs: https://golangci-lint.run/usage/configuration/
+
+version: "2"
+
+run:
+  go: "1.23"
+
+linters:
+  enable:
+    # ── Quality & Correctness ──────────────────────────────────────────
+    - gocritic        # 100+ checks for bugs, performance, and style anti-patterns
+    - revive          # configurable linter with 60+ rules (golint replacement)
+    - errorlint       # correct error wrapping: errors.Is/As instead of == / type assert
+    - gosec           # detects security issues (hardcoded creds, path traversal, etc.)
+    - nilerr          # catches err!=nil followed by returning nil error (swallowed errors)
+    - nilnil          # flags (nil, nil) returns that lead to nil-pointer panics in callers
+    - predeclared     # catches shadowing of Go builtins (len, cap, error, true, etc.)
+    - reassign        # prevents reassignment of package-level variables
+    - wastedassign    # finds assignments to variables that are never read afterward
+    - mirror          # catches swapped arguments in bytes/strings functions
+    - copyloopvar     # flags unnecessary loop variable copies (Go 1.22+ semantics)
+    - unconvert       # removes redundant type conversions
+    - unparam         # detects unused function parameters
+    - asciicheck      # ensures identifiers contain only ASCII characters
+    - bidichk         # detects dangerous Unicode bidirectional character sequences
+    - durationcheck   # prevents time.Duration * time.Duration bugs (nanoseconds²)
+    - intrange        # suggests Go 1.22+ integer range syntax (for i := range n)
+    - usestdlibvars   # use stdlib constants (http.MethodGet) instead of magic strings
+    - exhaustive      # ensures switch statements cover all enum/const cases
+
+    # ── Failure Tolerance & Reliability ────────────────────────────────
+    - bodyclose       # ensures http.Response.Body is closed (prevents goroutine leaks)
+    - noctx           # requires context.Context in HTTP requests (enables cancellation)
+    - errname         # enforces ErrFoo / FooError naming conventions for error types
+    - makezero        # catches make([]T, N) followed by append (N zero-values prepended)
+    - fatcontext      # detects context.WithValue/WithCancel inside loops (GC pressure)
+
+    # ── Performance ────────────────────────────────────────────────────
+    - perfsprint      # faster alternatives to fmt.Sprintf (strconv.Itoa, etc.)
+    - goconst         # finds repeated string literals that should be constants
+    - nakedret        # flags naked returns that obscure what's being returned
+
+    # ── Style Consistency ──────────────────────────────────────────────
+    - misspell        # catches common misspellings in comments and strings
+    - whitespace      # removes unnecessary leading/trailing blank lines
+
+  settings:
+    errcheck:
+      check-type-assertions: true  # catch unchecked type assertions (panic risk)
+      check-blank: true            # catch _ = err patterns (silently swallowed errors)
+
+    exhaustive:
+      default-signifies-exhaustive: true  # treat default case as covering remaining values
+
+    goconst:
+      min-len: 3          # ignore short strings
+      min-occurrences: 3  # only flag strings repeated 3+ times
+
+    gocritic:
+      enabled-tags:
+        - diagnostic    # bug detection (54 checks)
+        - style         # style anti-patterns (41 checks)
+        - performance   # allocation/copy optimizations (13 checks)
+      disabled-checks:
+        - hugeParam     # small structs in this CLI; not worth the noise
+
+    gosec:
+      excludes:
+        - G304  # file path from variable is expected in CLI tools
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment  # struct field reordering is premature optimization
+
+    misspell:
+      locale: US
+
+    nakedret:
+      max-func-lines: 0  # flag all naked returns regardless of function length
+
+    perfsprint:
+      strconcat: false  # don't suggest string concat over Sprintf (readability > speed)
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-naming
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: indent-error-flow
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: redefines-builtin-id
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # Allow ignoring errors from fmt.Fprint* in output formatting
+      - linters: [errcheck]
+        path: internal/output/
+      # Allow ignoring fmt.Fprint* errors in CLI entry point
+      - linters: [errcheck]
+        path: cmd/
+        text: fmt\.
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+issues:
+  max-issues-per-linter: 0  # report all issues (no cap)
+  max-same-issues: 0        # report all duplicates (no cap)
+
+formatters:
+  enable:
+    - gofumpt     # stricter gofmt (deterministic formatting)
+    - goimports   # groups and orders imports (stdlib | third-party | local)
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/lifedraft/targetprocess-cli
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
