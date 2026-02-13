@@ -45,6 +45,15 @@ Update an entity (--name, --description, --state-id, --assigned-user-id).
 ### tp entity presets
 List available search presets.
 
+### tp entity comment list --entity-id <ID>
+List comments on an entity.
+
+### tp entity comment add --entity-id <ID> --body <text>
+Add a comment (auto-markdown, @mention resolution).
+
+### tp entity comment delete --id <ID>
+Delete a comment by ID.
+
 ### tp inspect types
 List all available entity types.
 
@@ -125,6 +134,12 @@ Other: Project, Team, Iteration, TeamIteration, Release, Program, Comment, Time,
 
   # Items assigned to someone
   tp query UserStory -s 'id,name' -w 'assignments.any(generalUser.firstName=="John")'
+
+  # List comments
+  tp entity comment list --entity-id 342236
+
+  # Add a comment with @mention
+  tp entity comment add --entity-id 342236 --body "Hey @timo, looks good"
 
   # Raw API call
   tp api GET '/api/v1/UserStorys?take=5'
@@ -208,6 +223,28 @@ func jsonCheatsheet() map[string]any {
 			{
 				"name":  "tp entity presets",
 				"usage": "List available search presets",
+			},
+			{
+				"name":  "tp entity comment list",
+				"usage": "List comments on an entity",
+				"flags": []map[string]string{
+					{"name": "--entity-id", "usage": "Entity ID (required)"},
+				},
+			},
+			{
+				"name":  "tp entity comment add",
+				"usage": "Add a comment (auto-markdown, @mention resolution)",
+				"flags": []map[string]string{
+					{"name": "--entity-id", "usage": "Entity ID (required)"},
+					{"name": "--body", "usage": "Comment text (required)"},
+				},
+			},
+			{
+				"name":  "tp entity comment delete",
+				"usage": "Delete a comment by ID",
+				"flags": []map[string]string{
+					{"name": "--id", "usage": "Comment ID (required)"},
+				},
 			},
 			{
 				"name":  "tp inspect types",
@@ -296,6 +333,8 @@ func jsonCheatsheet() map[string]any {
 			{"description": "Recently modified", "command": "tp query Assignable -s 'id,name,entityType.name as type' -w 'modifyDate>=Today.AddDays(-7)' --order 'modifyDate desc'"},
 			{"description": "Cross-type text search", "command": "tp query Assignable -s 'id,name,entityType.name as type' -w 'name.toLower().contains(\"keyword\")'"},
 			{"description": "Items assigned to someone", "command": "tp query UserStory -s 'id,name' -w 'assignments.any(generalUser.firstName==\"John\")'"},
+			{"description": "List comments", "command": "tp entity comment list --entity-id 342236"},
+			{"description": "Add a comment with @mention", "command": "tp entity comment add --entity-id 342236 --body \"Hey @timo, looks good\""},
 			{"description": "Raw API GET", "command": "tp api GET '/api/v1/UserStorys?take=5'"},
 			{"description": "Raw API POST", "command": "tp api POST '/api/v1/Comments' --body '{\"General\":{\"Id\":123},\"Description\":\"Hello\"}'"},
 		},

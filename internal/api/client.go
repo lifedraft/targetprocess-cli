@@ -234,6 +234,15 @@ func (c *Client) UpdateEntity(ctx context.Context, entityType string, id int, fi
 	return entity, nil
 }
 
+// DeleteEntity deletes an entity by type and ID.
+func (c *Client) DeleteEntity(ctx context.Context, entityType string, id int) ([]byte, error) {
+	if err := ValidateEntityType(entityType); err != nil {
+		return nil, err
+	}
+	path := fmt.Sprintf("/api/v1/%ss/%d", entityType, id)
+	return c.do(ctx, http.MethodDelete, path, nil, nil)
+}
+
 // GetMetaIndex fetches the metadata index (list of all entity types) as XML.
 func (c *Client) GetMetaIndex(ctx context.Context) ([]byte, error) {
 	params := url.Values{}

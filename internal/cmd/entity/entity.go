@@ -23,13 +23,23 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
   tp entity update --type UserStory --id 12345 --state-id 100
 
   # List available search presets
-  tp entity presets`,
+  tp entity presets
+
+  # List comments on an entity
+  tp entity comment list --entity-id 342236
+
+  # Add a comment with @mentions
+  tp entity comment add --entity-id 342236 --body "Hey @timo, this looks good"
+
+  # Delete a comment
+  tp entity comment delete --id 99999`,
 		Commands: []*cli.Command{
 			newSearchCmd(f),
 			newGetCmd(f),
 			newCreateCmd(f),
 			newUpdateCmd(f),
 			newPresetsCmd(),
+			newCommentCmd(f),
 		},
 	}
 }

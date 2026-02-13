@@ -9,6 +9,7 @@ import (
 
 	"github.com/lifedraft/targetprocess-cli/internal/cmdutil"
 	"github.com/lifedraft/targetprocess-cli/internal/output"
+	"github.com/lifedraft/targetprocess-cli/internal/text"
 )
 
 func newCreateCmd(f *cmdutil.Factory) *cli.Command {
@@ -57,6 +58,10 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 			}
 			if userID := cmd.Int("assigned-user-id"); userID > 0 {
 				fields["AssignedUser"] = map[string]any{"Id": userID}
+			}
+
+			if err := text.PrepareFields(ctx, client, fields); err != nil {
+				return err
 			}
 
 			entity, err := client.CreateEntity(ctx, entityType, fields)

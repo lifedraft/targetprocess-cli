@@ -10,6 +10,7 @@ import (
 
 	"github.com/lifedraft/targetprocess-cli/internal/cmdutil"
 	"github.com/lifedraft/targetprocess-cli/internal/output"
+	"github.com/lifedraft/targetprocess-cli/internal/text"
 )
 
 func newUpdateCmd(f *cmdutil.Factory) *cli.Command {
@@ -62,6 +63,10 @@ func newUpdateCmd(f *cmdutil.Factory) *cli.Command {
 
 			if len(fields) == 0 {
 				return errors.New("no fields to update; specify at least one of --name, --description, --state-id, or --assigned-user-id")
+			}
+
+			if err := text.PrepareFields(ctx, client, fields); err != nil {
+				return err
 			}
 
 			entity, err := client.UpdateEntity(ctx, entityType, id, fields)

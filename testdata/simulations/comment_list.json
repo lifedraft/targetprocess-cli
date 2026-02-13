@@ -1,0 +1,49 @@
+{
+  "pairs": [
+    {
+      "description": "comment_list",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/Comments",
+        "query": {
+          "where": "General.Id eq 342236",
+          "include": "[Description,CreateDate,Owner]"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "Items": [
+            {
+              "Id": 1001,
+              "Description": "<!--markdown-->Test comment on the user story",
+              "CreateDate": "/Date(1717232400000)/",
+              "Owner": {
+                "Id": 285,
+                "FirstName": "Stan",
+                "LastName": "Mueller",
+                "ResourceType": "GeneralUser"
+              },
+              "ResourceType": "Comment"
+            },
+            {
+              "Id": 1002,
+              "Description": "<!--markdown-->Follow-up comment with details",
+              "CreateDate": "/Date(1717318800000)/",
+              "Owner": {
+                "Id": 994,
+                "FirstName": "Test",
+                "LastName": "User",
+                "ResourceType": "GeneralUser"
+              },
+              "ResourceType": "Comment"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "pairs": [
+    {
+      "description": "comment_delete",
+      "request": {
+        "method": "DELETE",
+        "path": "/api/v1/Comments/1001"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {}
+      }
+    }
+  ]
+}

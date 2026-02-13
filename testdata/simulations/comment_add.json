@@ -1,0 +1,33 @@
+{
+  "pairs": [
+    {
+      "description": "comment_add",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/Comments"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "Id": 1003,
+          "Description": "<!--markdown-->New comment added",
+          "CreateDate": "/Date(1717405200000)/",
+          "Owner": {
+            "Id": 285,
+            "FirstName": "Stan",
+            "LastName": "Mueller",
+            "ResourceType": "GeneralUser"
+          },
+          "General": {
+            "Id": 342236,
+            "ResourceType": "General"
+          },
+          "ResourceType": "Comment"
+        }
+      }
+    }
+  ]
+}

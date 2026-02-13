@@ -229,6 +229,26 @@ func TestInspectProperties(t *testing.T) {
 	cupaloy.SnapshotT(t, out)
 }
 
+// --- Comment command tests ---
+
+func TestCommentList(t *testing.T) {
+	ss := startServer(t, "comment_list.json")
+	out := runTP(t, ss.URL(), "entity", "comment", "list", "--entity-id", "342236")
+	cupaloy.SnapshotT(t, out)
+}
+
+func TestCommentAdd(t *testing.T) {
+	ss := startServer(t, "comment_add.json")
+	out := runTP(t, ss.URL(), "entity", "comment", "add", "--entity-id", "342236", "--body", "New comment added")
+	cupaloy.SnapshotT(t, out)
+}
+
+func TestCommentDelete(t *testing.T) {
+	ss := startServer(t, "comment_delete.json")
+	out := runTP(t, ss.URL(), "entity", "comment", "delete", "--id", "1001")
+	cupaloy.SnapshotT(t, out)
+}
+
 // --- Error scenario tests ---
 
 func TestQueryMissingEntityType(t *testing.T) {
