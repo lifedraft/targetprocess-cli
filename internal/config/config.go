@@ -57,9 +57,13 @@ func Load(path string) (*Config, error) {
 		}
 	}
 
-	// Environment variables override file config (TP_DOMAIN, TP_TOKEN)
-	if err := k.Load(env.Provider("TP_", ".", func(s string) string {
-		return strings.ToLower(strings.TrimPrefix(s, "TP_"))
+	// Environment variables override file config (TP_DOMAIN, TP_TOKEN).
+	// Empty values are skipped so that an unset env var doesn't override a file value.
+	if err := k.Load(env.ProviderWithValue("TP_", ".", func(key, value string) (string, interface{}) {
+		if value == "" {
+			return "", nil
+		}
+		return strings.ToLower(strings.TrimPrefix(key, "TP_")), value
 	}), nil); err != nil {
 		return nil, fmt.Errorf("loading env config: %w", err)
 	}

@@ -100,8 +100,8 @@ func newCommentAddCmd(f *cmdutil.Factory) *cli.Command {
 				"General":     map[string]any{"Id": entityID},
 			}
 
-			if err := text.PrepareFields(ctx, client, fields); err != nil {
-				return fmt.Errorf("preparing comment fields: %w", err)
+			if prepErr := text.PrepareFields(ctx, client, fields); prepErr != nil {
+				return fmt.Errorf("preparing comment fields: %w", prepErr)
 			}
 
 			entity, err := client.CreateEntity(ctx, "Comment", fields)

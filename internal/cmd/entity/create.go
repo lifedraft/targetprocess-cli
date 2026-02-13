@@ -60,8 +60,8 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 				fields["AssignedUser"] = map[string]any{"Id": userID}
 			}
 
-			if err := text.PrepareFields(ctx, client, fields); err != nil {
-				return err
+			if prepErr := text.PrepareFields(ctx, client, fields); prepErr != nil {
+				return prepErr
 			}
 
 			entity, err := client.CreateEntity(ctx, entityType, fields)

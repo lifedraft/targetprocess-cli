@@ -38,7 +38,7 @@ func (r *UserResolver) ResolveMentions(ctx context.Context, text string) (string
 
 	// Collect unique mentions.
 	type mentionInfo struct {
-		name    string
+		name     string
 		resolved string
 	}
 	seen := make(map[string]*mentionInfo)

@@ -75,7 +75,7 @@ func TestMentionRegex(t *testing.T) {
 }
 
 func TestResolveMentions(t *testing.T) {
-	userResponse, _ := json.Marshal(map[string]any{
+	userResponse, err := json.Marshal(map[string]any{
 		"items": []map[string]any{
 			{
 				"id":        1,
@@ -85,10 +85,16 @@ func TestResolveMentions(t *testing.T) {
 			},
 		},
 	})
+	if err != nil {
+		t.Fatalf("failed to marshal user response: %v", err)
+	}
 
-	emptyResponse, _ := json.Marshal(map[string]any{
+	emptyResponse, err := json.Marshal(map[string]any{
 		"items": []any{},
 	})
+	if err != nil {
+		t.Fatalf("failed to marshal empty response: %v", err)
+	}
 
 	sim := &testutil.Simulation{
 		Pairs: []testutil.Pair{
