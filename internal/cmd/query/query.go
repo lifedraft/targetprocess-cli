@@ -17,6 +17,7 @@ import (
 	"github.com/lifedraft/targetprocess-cli/internal/api"
 	"github.com/lifedraft/targetprocess-cli/internal/cmdutil"
 	"github.com/lifedraft/targetprocess-cli/internal/output"
+	"github.com/lifedraft/targetprocess-cli/internal/resolve"
 )
 
 // NewCmd creates the "query" command for v2 API queries.
@@ -100,6 +101,7 @@ State helpers: entityState.isFinal==true, entityState.isInitial==true`,
 				return err
 			}
 
+			entityType = resolve.EntityType(entityType)
 			if vErr := api.ValidateEntityType(entityType); vErr != nil {
 				return vErr
 			}
