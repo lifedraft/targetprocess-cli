@@ -66,7 +66,7 @@ func checkAPI(domain string) string {
 	if err != nil {
 		return "unreachable"
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // URL is from user-configured TP domain
 	if err != nil {
 		return "unreachable"
 	}

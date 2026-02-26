@@ -157,7 +157,7 @@ func (ss *SimulationServer) handler(w http.ResponseWriter, r *http.Request) {
 	// No match found — return detailed 404
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusNotFound)
-	fmt.Fprintf(w, "no matching simulation for %s %s", r.Method, r.URL.String())
+	fmt.Fprintf(w, "no matching simulation for %s %s", r.Method, r.URL.String()) //nolint:gosec // test-only simulation server
 }
 
 // URL returns the test server's URL.

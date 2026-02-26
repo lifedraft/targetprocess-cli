@@ -294,7 +294,7 @@ func WarnSelectDotPaths(selectExpr string) string {
 	var sb strings.Builder
 	sb.WriteString("Warning: These dot-path fields in select are missing 'as' aliases and will be silently dropped by the API:\n")
 	for _, m := range missing {
-		sb.WriteString(fmt.Sprintf("  - %s  (add: %s as %s)\n", m, m, suggestAlias(m)))
+		fmt.Fprintf(&sb, "  - %s  (add: %s as %s)\n", m, m, suggestAlias(m))
 	}
 	return sb.String()
 }

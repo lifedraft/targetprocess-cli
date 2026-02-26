@@ -155,32 +155,29 @@ func TestQueryDryRun(t *testing.T) {
 
 // --- Entity command tests ---
 
-func TestEntityGet(t *testing.T) {
+func TestShow(t *testing.T) {
 	ss := startServer(t, "entity_get.json")
 	out := runTP(t, ss.URL(),
-		"entity", "get",
+		"show", "342348",
 		"--type", "UserStory",
-		"--id", "342348",
 	)
 	cupaloy.SnapshotT(t, out)
 }
 
-func TestEntityGetJSON(t *testing.T) {
+func TestShowJSON(t *testing.T) {
 	ss := startServer(t, "entity_get.json")
 	out := runTP(t, ss.URL(),
-		"entity", "get",
+		"show", "342348",
 		"--type", "UserStory",
-		"--id", "342348",
 		"--output", "json",
 	)
 	cupaloy.SnapshotT(t, out)
 }
 
-func TestEntitySearch(t *testing.T) {
+func TestSearch(t *testing.T) {
 	ss := startServer(t, "entity_search.json")
 	out := runTP(t, ss.URL(),
-		"entity", "search",
-		"--type", "UserStory",
+		"search", "UserStory",
 		"-s", "id,name,entityState.name as state",
 		"-w", "entityState.isFinal!=true",
 		"--take", "3",
@@ -188,11 +185,10 @@ func TestEntitySearch(t *testing.T) {
 	cupaloy.SnapshotT(t, out)
 }
 
-func TestEntitySearchJSON(t *testing.T) {
+func TestSearchJSON(t *testing.T) {
 	ss := startServer(t, "entity_search.json")
 	out := runTP(t, ss.URL(),
-		"entity", "search",
-		"--type", "UserStory",
+		"search", "UserStory",
 		"-s", "id,name,entityState.name as state",
 		"-w", "entityState.isFinal!=true",
 		"--take", "3",
@@ -233,19 +229,19 @@ func TestInspectProperties(t *testing.T) {
 
 func TestCommentList(t *testing.T) {
 	ss := startServer(t, "comment_list.json")
-	out := runTP(t, ss.URL(), "entity", "comment", "list", "--entity-id", "342236")
+	out := runTP(t, ss.URL(), "comment", "list", "342236")
 	cupaloy.SnapshotT(t, out)
 }
 
 func TestCommentAdd(t *testing.T) {
 	ss := startServer(t, "comment_add.json")
-	out := runTP(t, ss.URL(), "entity", "comment", "add", "--entity-id", "342236", "--body", "New comment added")
+	out := runTP(t, ss.URL(), "comment", "add", "342236", "New comment added")
 	cupaloy.SnapshotT(t, out)
 }
 
 func TestCommentDelete(t *testing.T) {
 	ss := startServer(t, "comment_delete.json")
-	out := runTP(t, ss.URL(), "entity", "comment", "delete", "--id", "1001")
+	out := runTP(t, ss.URL(), "comment", "delete", "1001")
 	cupaloy.SnapshotT(t, out)
 }
 
@@ -259,14 +255,13 @@ func TestQueryMissingEntityType(t *testing.T) {
 	cupaloy.SnapshotT(t, out)
 }
 
-func TestEntitySearchNoMatch(t *testing.T) {
+func TestSearchNoMatch(t *testing.T) {
 	// Use empty simulation to trigger "no matching simulation" 404
 	ss := testutil.NewSimulationServer(&testutil.Simulation{})
 	t.Cleanup(ss.Close)
 
 	out := runTPExpectError(t, ss.URL(),
-		"entity", "search",
-		"--type", "NonExistent",
+		"search", "NonExistent",
 		"-s", "id,name",
 	)
 	// Stabilize dynamic URL in error output

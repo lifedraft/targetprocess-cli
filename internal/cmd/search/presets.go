@@ -1,28 +1,21 @@
-package entity
+package search
 
 import (
-	"context"
 	"fmt"
-	"os"
 	"sort"
-	"text/tabwriter"
-
-	"github.com/urfave/cli/v3"
-
-	"github.com/lifedraft/targetprocess-cli/internal/cmdutil"
-	"github.com/lifedraft/targetprocess-cli/internal/output"
 )
 
-// preset defines a reusable search filter with optional field projection and sorting.
-type preset struct {
+// Preset defines a reusable search filter with optional field projection and sorting.
+type Preset struct {
 	Name        string
 	Description string
 	Where       string
-	Select      string // optional v2 select expression
-	OrderBy     string // optional v2 orderBy expression
+	Select      string
+	OrderBy     string
 }
 
-var searchPresets = map[string]preset{
+// SearchPresets is the map of all available search presets.
+var SearchPresets = map[string]Preset{
 	// Status-based
 	"open": {
 		Name:        "open",
@@ -116,68 +109,25 @@ var searchPresets = map[string]preset{
 	},
 }
 
-// sortedPresetNames is the sorted list of preset names, computed once.
-var sortedPresetNames = func() []string {
-	names := make([]string, 0, len(searchPresets))
-	for name := range searchPresets {
+// SortedPresetNames is the sorted list of preset names.
+var SortedPresetNames = func() []string {
+	names := make([]string, 0, len(SearchPresets))
+	for name := range SearchPresets {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	return names
 }()
 
-// applyPreset resolves a preset name into a full preset struct.
+// ApplyPreset resolves a preset name into a full Preset struct.
 // If where is also provided, the preset where and the extra where are combined with " and ".
-func applyPreset(presetName, where string) (preset, error) {
-	p, ok := searchPresets[presetName]
+func ApplyPreset(presetName, where string) (Preset, error) {
+	p, ok := SearchPresets[presetName]
 	if !ok {
-		return preset{}, fmt.Errorf("unknown preset %q, valid presets: %v", presetName, sortedPresetNames)
+		return Preset{}, fmt.Errorf("unknown preset %q, valid presets: %v", presetName, SortedPresetNames)
 	}
 	if where != "" {
 		p.Where = p.Where + " and " + where
 	}
 	return p, nil
-}
-
-func newPresetsCmd() *cli.Command {
-	return &cli.Command{
-		Name:  "presets",
-		Usage: "List available search preset filters",
-		UsageText: `# List all presets in text format
-  tp entity presets
-
-  # List presets as JSON
-  tp entity presets --output json`,
-		Flags: []cli.Flag{
-			cmdutil.OutputFlag(),
-		},
-		Action: func(ctx context.Context, cmd *cli.Command) error {
-			if cmdutil.IsJSON(cmd) {
-				type jsonPreset struct {
-					Name        string `json:"name"`
-					Description string `json:"description"`
-					Where       string `json:"where"`
-					Select      string `json:"select,omitempty"`
-					OrderBy     string `json:"orderBy,omitempty"`
-				}
-				names := sortedPresetNames
-				presets := make([]jsonPreset, len(names))
-				for i, name := range names {
-					p := searchPresets[name]
-					presets[i] = jsonPreset(p)
-				}
-				return output.PrintJSON(os.Stdout, map[string]any{
-					"presets": presets,
-				})
-			}
-
-			tw := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(tw, "NAME\tDESCRIPTION\tWHERE\n")
-			for _, name := range sortedPresetNames {
-				p := searchPresets[name]
-				fmt.Fprintf(tw, "%s\t%s\t%s\n", name, p.Description, p.Where)
-			}
-			return tw.Flush()
-		},
-	}
 }

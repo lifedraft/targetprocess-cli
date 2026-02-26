@@ -74,7 +74,7 @@ func (c *Client) buildURL(path string, params url.Values) string {
 
 func (c *Client) request(ctx context.Context, method, fullURL string, body io.Reader) ([]byte, error) {
 	if c.Debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: %s %s\n", method, redactToken(fullURL))
+		fmt.Fprintf(os.Stderr, "DEBUG: %s %s\n", method, redactToken(fullURL)) //nolint:gosec // debug log to stderr, not web output
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
@@ -87,7 +87,7 @@ func (c *Client) request(ctx context.Context, method, fullURL string, body io.Re
 	}
 	req.Header.Set("User-Agent", "tp-cli/0.1.0")
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.HTTPClient.Do(req) //nolint:gosec // URL is constructed from configured base URL + API path
 	if err != nil {
 		return nil, fmt.Errorf("executing request: %w", err)
 	}
@@ -102,7 +102,7 @@ func (c *Client) request(ctx context.Context, method, fullURL string, body io.Re
 	}
 
 	if c.Debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: HTTP %d, %d bytes\n", resp.StatusCode, len(data))
+		fmt.Fprintf(os.Stderr, "DEBUG: HTTP %d, %d bytes\n", resp.StatusCode, len(data)) //nolint:gosec // debug log to stderr, not web output
 	}
 
 	if resp.StatusCode >= 400 {
@@ -241,6 +241,31 @@ func (c *Client) DeleteEntity(ctx context.Context, entityType string, id int) ([
 	}
 	path := fmt.Sprintf("/api/v1/%ss/%d", entityType, id)
 	return c.do(ctx, http.MethodDelete, path, nil, nil)
+}
+
+// ResolveEntityType resolves the entity type for a given ID via the General endpoint.
+func (c *Client) ResolveEntityType(ctx context.Context, id int) (string, error) {
+	data, err := c.QueryV2Entity(ctx, "General", id, "resourceType")
+	if err != nil {
+		return "", fmt.Errorf("resolving entity type for ID %d: %w", id, err)
+	}
+
+	var resp struct {
+		Items []struct {
+			ResourceType string `json:"resourceType"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return "", fmt.Errorf("parsing entity type response for ID %d: %w", id, err)
+	}
+	if len(resp.Items) == 0 {
+		return "", fmt.Errorf("entity with ID %d not found", id)
+	}
+	rt := resp.Items[0].ResourceType
+	if rt == "" {
+		return "", fmt.Errorf("entity %d has no resourceType", id)
+	}
+	return rt, nil
 }
 
 // GetMetaIndex fetches the metadata index (list of all entity types) as XML.

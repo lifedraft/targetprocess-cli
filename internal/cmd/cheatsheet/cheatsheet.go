@@ -15,7 +15,48 @@ const markdownCheatsheet = `# tp CLI — Quick Reference
 
 ## Commands
 
-### tp query <Type> [flags]
+### tp show <id> [flags]
+Show a single entity by ID (auto-detects type).
+  --type          Entity type (skip auto-detection)
+  --include       Related data to include (e.g. Project,Team)
+  -o, --output    Output format: text, json
+
+### tp search <type> [flags]
+Search entities using v2 API.
+  -w, --where     Filter expression (e.g. 'entityState.isFinal!=true')
+  -s, --select    Fields to return (e.g. 'id,name,entityState.name as state')
+  --preset        Use a preset filter (run 'tp presets' to list)
+  -t, --take      Max results (default 25, max 1000)
+  --order-by      Sort expression (e.g. 'createDate desc')
+
+### tp create <type> <name> --project-id <ID>
+Create a new entity.
+  --project-id    Project ID (required)
+  --description   Entity description
+  --team-id       Team ID
+  --assigned-user-id  Assigned user ID
+
+### tp update <id> [flags]
+Update an entity (auto-detects type).
+  --type          Entity type (skip auto-detection)
+  --name          New name
+  --description   New description
+  --state-id      New entity state ID
+  --assigned-user-id  New assigned user ID
+
+### tp comment list <entity-id>
+List comments on an entity.
+
+### tp comment add <entity-id> <body>
+Add a comment (auto-markdown, @mention resolution).
+
+### tp comment delete <comment-id>
+Delete a comment by ID.
+
+### tp presets
+List available search presets.
+
+### tp query <Type>[/<id>] [flags]
 Query entities using v2 API with powerful filtering and projections.
   -s, --select    Fields to return (e.g., 'id,name,entityState.name as state')
   -w, --where     Filter expression
@@ -24,47 +65,8 @@ Query entities using v2 API with powerful filtering and projections.
   --skip          Skip N results
   --dry-run       Show URL without executing
 
-### tp entity search --type <Type> [flags]
-Search entities using v1 API.
-  --type          Entity type (required)
-  --where         Filter expression (v1 syntax)
-  --include       Fields to include
-  --take          Max results
-  --order-by      Sort fields
-  --preset        Use a preset filter
-
-### tp entity get --type <Type> --id <ID>
-Get a single entity by ID.
-
-### tp entity create --type <Type> --name <Name> --project-id <ID>
-Create a new entity.
-
-### tp entity update --type <Type> --id <ID> [field flags]
-Update an entity (--name, --description, --state-id, --assigned-user-id).
-
-### tp entity presets
-List available search presets.
-
-### tp entity comment list --entity-id <ID>
-List comments on an entity.
-
-### tp entity comment add --entity-id <ID> --body <text>
-Add a comment (auto-markdown, @mention resolution).
-
-### tp entity comment delete --id <ID>
-Delete a comment by ID.
-
-### tp inspect types
-List all available entity types.
-
-### tp inspect properties --type <Type>
-List properties of an entity type.
-
-### tp inspect details --type <Type> --property <Name>
-Get detailed info about a property.
-
-### tp inspect discover
-Discover available entity types.
+### tp inspect types|properties|details|discover
+Inspect Targetprocess API metadata.
 
 ### tp api [METHOD] <path> [--body JSON]
 Make raw API requests.
@@ -115,35 +117,37 @@ Other: Project, Team, Iteration, TeamIteration, Release, Program, Comment, Time,
   createdToday, modifiedToday, createdThisWeek, modifiedThisWeek,
   createdLastWeek, modifiedLastWeek, highPriorityUnassigned
 
-## Common Query Examples
+## Common Examples
+
+  # Show an entity by ID
+  tp show 341079
 
   # All open bugs
-  tp query Bug -w 'entityState.isFinal!=true' -s 'id,name,priority.name as priority'
+  tp search Bug -w 'entityState.isFinal!=true' -s 'id,name,priority.name as priority'
 
-  # Sprint status
-  tp query Assignable -s 'id,name,entityType.name as type,entityState.name as state' -w 'teamIteration!=null'
+  # Cross-type search
+  tp search Assignable -s 'id,name,entityType.name as type' -w 'name.toLower().contains("keyword")'
 
-  # Feature progress
-  tp query Feature -s 'id,name,userStories.count as total,userStories.where(entityState.isFinal==true).count as done'
+  # Use a preset
+  tp search UserStory --preset open
 
-  # Recently modified
-  tp query Assignable -s 'id,name,entityType.name as type' -w 'modifyDate>=Today.AddDays(-7)' --order 'modifyDate desc'
+  # Create a story
+  tp create UserStory "Implement login" --project-id 42
 
-  # Cross-type text search
-  tp query Assignable -s 'id,name,entityType.name as type' -w 'name.toLower().contains("keyword")'
-
-  # Items assigned to someone
-  tp query UserStory -s 'id,name' -w 'assignments.any(generalUser.firstName=="John")'
+  # Update an entity
+  tp update 12345 --name "New title"
 
   # List comments
-  tp entity comment list --entity-id 342236
+  tp comment list 342236
 
   # Add a comment with @mention
-  tp entity comment add --entity-id 342236 --body "Hey @timo, looks good"
+  tp comment add 342236 "Hey @timo, looks good"
+
+  # Advanced query with projections
+  tp query Feature -s 'id,name,userStories.count as total,userStories.where(entityState.isFinal==true).count as done'
 
   # Raw API call
   tp api GET '/api/v1/UserStorys?take=5'
-  tp api POST '/api/v1/Comments' --body '{"General":{"Id":123},"Description":"Hello"}'
 `
 
 // NewCmd creates the cheatsheet command.
@@ -168,8 +172,72 @@ func jsonCheatsheet() map[string]any {
 	return map[string]any{
 		"commands": []map[string]any{
 			{
+				"name":  "tp show",
+				"usage": "Show entity by ID (auto-detects type)",
+				"args":  "<id>",
+				"flags": []map[string]string{
+					{"name": "--type", "usage": "Entity type (skip auto-detection)"},
+					{"name": "--include", "usage": "Related data to include"},
+				},
+			},
+			{
+				"name":  "tp search",
+				"usage": "Search entities using v2 API",
+				"args":  "<type>",
+				"flags": []map[string]string{
+					{"name": "-w, --where", "usage": "Filter expression"},
+					{"name": "-s, --select", "usage": "Fields to return"},
+					{"name": "--preset", "usage": "Use a preset filter"},
+					{"name": "-t, --take", "usage": "Max results (default 25, max 1000)"},
+					{"name": "--order-by", "usage": "Sort expression"},
+				},
+			},
+			{
+				"name":  "tp create",
+				"usage": "Create a new entity",
+				"args":  "<type> <name>",
+				"flags": []map[string]string{
+					{"name": "--project-id", "usage": "Project ID (required)"},
+					{"name": "--description", "usage": "Entity description"},
+					{"name": "--team-id", "usage": "Team ID"},
+					{"name": "--assigned-user-id", "usage": "Assigned user ID"},
+				},
+			},
+			{
+				"name":  "tp update",
+				"usage": "Update entity (auto-detects type)",
+				"args":  "<id>",
+				"flags": []map[string]string{
+					{"name": "--type", "usage": "Entity type (skip auto-detection)"},
+					{"name": "--name", "usage": "New name"},
+					{"name": "--description", "usage": "New description"},
+					{"name": "--state-id", "usage": "New state ID"},
+					{"name": "--assigned-user-id", "usage": "Assigned user ID"},
+				},
+			},
+			{
+				"name":  "tp comment list",
+				"usage": "List comments on an entity",
+				"args":  "<entity-id>",
+			},
+			{
+				"name":  "tp comment add",
+				"usage": "Add a comment (auto-markdown, @mention resolution)",
+				"args":  "<entity-id> <body>",
+			},
+			{
+				"name":  "tp comment delete",
+				"usage": "Delete a comment by ID",
+				"args":  "<comment-id>",
+			},
+			{
+				"name":  "tp presets",
+				"usage": "List available search presets",
+			},
+			{
 				"name":  "tp query",
 				"usage": "Query entities via v2 API",
+				"args":  "<Type>[/<id>]",
 				"flags": []map[string]string{
 					{"name": "-s, --select", "usage": "Fields to return"},
 					{"name": "-w, --where", "usage": "Filter expression"},
@@ -180,94 +248,8 @@ func jsonCheatsheet() map[string]any {
 				},
 			},
 			{
-				"name":  "tp entity search",
-				"usage": "Search entities via v1 API",
-				"flags": []map[string]string{
-					{"name": "--type", "usage": "Entity type (required)"},
-					{"name": "--where", "usage": "Filter expression (v1 syntax)"},
-					{"name": "--include", "usage": "Fields to include"},
-					{"name": "--take", "usage": "Max results"},
-					{"name": "--order-by", "usage": "Sort fields"},
-					{"name": "--preset", "usage": "Use a preset filter"},
-				},
-			},
-			{
-				"name":  "tp entity get",
-				"usage": "Get a single entity by ID",
-				"flags": []map[string]string{
-					{"name": "--type", "usage": "Entity type (required)"},
-					{"name": "--id", "usage": "Entity ID (required)"},
-				},
-			},
-			{
-				"name":  "tp entity create",
-				"usage": "Create a new entity",
-				"flags": []map[string]string{
-					{"name": "--type", "usage": "Entity type (required)"},
-					{"name": "--name", "usage": "Entity name (required)"},
-					{"name": "--project-id", "usage": "Project ID (required)"},
-				},
-			},
-			{
-				"name":  "tp entity update",
-				"usage": "Update an entity",
-				"flags": []map[string]string{
-					{"name": "--type", "usage": "Entity type (required)"},
-					{"name": "--id", "usage": "Entity ID (required)"},
-					{"name": "--name", "usage": "New name"},
-					{"name": "--description", "usage": "New description"},
-					{"name": "--state-id", "usage": "New state ID"},
-					{"name": "--assigned-user-id", "usage": "Assigned user ID"},
-				},
-			},
-			{
-				"name":  "tp entity presets",
-				"usage": "List available search presets",
-			},
-			{
-				"name":  "tp entity comment list",
-				"usage": "List comments on an entity",
-				"flags": []map[string]string{
-					{"name": "--entity-id", "usage": "Entity ID (required)"},
-				},
-			},
-			{
-				"name":  "tp entity comment add",
-				"usage": "Add a comment (auto-markdown, @mention resolution)",
-				"flags": []map[string]string{
-					{"name": "--entity-id", "usage": "Entity ID (required)"},
-					{"name": "--body", "usage": "Comment text (required)"},
-				},
-			},
-			{
-				"name":  "tp entity comment delete",
-				"usage": "Delete a comment by ID",
-				"flags": []map[string]string{
-					{"name": "--id", "usage": "Comment ID (required)"},
-				},
-			},
-			{
-				"name":  "tp inspect types",
-				"usage": "List all available entity types",
-			},
-			{
-				"name":  "tp inspect properties",
-				"usage": "List properties of an entity type",
-				"flags": []map[string]string{
-					{"name": "--type", "usage": "Entity type (required)"},
-				},
-			},
-			{
-				"name":  "tp inspect details",
-				"usage": "Get detailed info about a property",
-				"flags": []map[string]string{
-					{"name": "--type", "usage": "Entity type (required)"},
-					{"name": "--property", "usage": "Property name (required)"},
-				},
-			},
-			{
-				"name":  "tp inspect discover",
-				"usage": "Discover available entity types",
+				"name":  "tp inspect",
+				"usage": "Inspect API metadata (types, properties, details, discover)",
 			},
 			{
 				"name":  "tp api",
@@ -277,8 +259,8 @@ func jsonCheatsheet() map[string]any {
 				},
 			},
 			{
-				"name":  "tp config get|set|list|path",
-				"usage": "Manage configuration",
+				"name":  "tp config",
+				"usage": "Manage configuration (get, set, list, path)",
 			},
 		},
 		"entityTypes": []string{
@@ -327,16 +309,16 @@ func jsonCheatsheet() map[string]any {
 			"createdLastWeek", "modifiedLastWeek", "highPriorityUnassigned",
 		},
 		"examples": []map[string]string{
-			{"description": "All open bugs", "command": "tp query Bug -w 'entityState.isFinal!=true' -s 'id,name,priority.name as priority'"},
-			{"description": "Sprint status", "command": "tp query Assignable -s 'id,name,entityType.name as type,entityState.name as state' -w 'teamIteration!=null'"},
+			{"description": "Show entity by ID", "command": "tp show 341079"},
+			{"description": "All open bugs", "command": "tp search Bug -w 'entityState.isFinal!=true' -s 'id,name,priority.name as priority'"},
+			{"description": "Cross-type search", "command": "tp search Assignable -s 'id,name,entityType.name as type' -w 'name.toLower().contains(\"keyword\")'"},
+			{"description": "Use a preset", "command": "tp search UserStory --preset open"},
+			{"description": "Create a story", "command": "tp create UserStory \"Implement login\" --project-id 42"},
+			{"description": "Update an entity", "command": "tp update 12345 --name \"New title\""},
+			{"description": "List comments", "command": "tp comment list 342236"},
+			{"description": "Add a comment with @mention", "command": "tp comment add 342236 \"Hey @timo, looks good\""},
 			{"description": "Feature progress", "command": "tp query Feature -s 'id,name,userStories.count as total,userStories.where(entityState.isFinal==true).count as done'"},
-			{"description": "Recently modified", "command": "tp query Assignable -s 'id,name,entityType.name as type' -w 'modifyDate>=Today.AddDays(-7)' --order 'modifyDate desc'"},
-			{"description": "Cross-type text search", "command": "tp query Assignable -s 'id,name,entityType.name as type' -w 'name.toLower().contains(\"keyword\")'"},
-			{"description": "Items assigned to someone", "command": "tp query UserStory -s 'id,name' -w 'assignments.any(generalUser.firstName==\"John\")'"},
-			{"description": "List comments", "command": "tp entity comment list --entity-id 342236"},
-			{"description": "Add a comment with @mention", "command": "tp entity comment add --entity-id 342236 --body \"Hey @timo, looks good\""},
 			{"description": "Raw API GET", "command": "tp api GET '/api/v1/UserStorys?take=5'"},
-			{"description": "Raw API POST", "command": "tp api POST '/api/v1/Comments' --body '{\"General\":{\"Id\":123},\"Description\":\"Hello\"}'"},
 		},
 	}
 }
