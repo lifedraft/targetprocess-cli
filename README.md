@@ -33,36 +33,46 @@ Config is stored in `~/.config/tp/config.yaml`. You can also use environment var
 
 The CLI wraps both the v1 and v2 Targetprocess APIs behind a handful of commands:
 
+- **`tp show <id>`** — Show an entity by ID (auto-detects type).
+- **`tp search <type>`** — Search for entities with filters and presets.
+- **`tp create <type> <name>`** — Create a new entity.
+- **`tp update <id>`** — Update an existing entity.
+- **`tp comment`** — List, add, or delete comments on entities.
 - **`tp query`** — The power tool. Query any entity type using TP's v2 query language with filtering, projections, and aggregations.
-- **`tp entity`** — CRUD operations. Search, get, create, and update work items.
 - **`tp inspect`** — Explore the API. List entity types, browse properties, discover what's available.
 - **`tp api`** — Escape hatch. Hit any API endpoint directly.
 - **`tp cheatsheet`** — Print a compact reference card with syntax and examples.
 - **`tp bug-report`** — Print diagnostic info for bug reports, or open a pre-filled GitHub issue.
 
+**Auto-resolution:** Entity types are resolved automatically — `userstory`, `UserStories`, `story`, and `us` all resolve to `UserStory`. Common command synonyms also work: `tp get` → `tp show`, `tp find` → `tp search`, `tp edit` → `tp update`. You can even skip the subcommand entirely: `tp 341079` is the same as `tp show 341079`.
+
 ## Quick examples
 
 ```bash
-# Open bugs, sorted by priority
-tp query Bug -w 'entityState.isFinal!=true' -s 'id,name,priority.name as priority'
+# Show an entity by ID
+tp show 341079
+tp 341079                  # shorthand — same thing
 
-# What's everyone working on this sprint?
-tp query Assignable -s 'id,name,entityType.name as type,entityState.name as state' \
-  -w 'teamIteration!=null'
-
-# Feature progress with story counts
-tp query Feature -s 'id,name,userStories.count as total,userStories.where(entityState.isFinal==true).count as done'
-
-# Search across all work item types
-tp query Assignable -s 'id,name,entityType.name as type' \
-  -w 'name.toLower().contains("login")'
-
-# Quick preset searches
-tp entity search --type Bug --preset highPriority
-tp entity search --type UserStory --preset open
+# Search with presets (entity types auto-resolve)
+tp search UserStory --preset open
+tp search story --preset open     # alias works too
+tp search bugs --preset highPriority
 
 # Create a story
-tp entity create --type UserStory --name "Implement dark mode" --project-id 42
+tp create UserStory "Implement dark mode" --project-id 42
+
+# Update an entity
+tp update 12345 --name "New title" --state-id 100
+
+# Comments
+tp comment list 341079
+tp comment add 341079 "Looks good, @timo"
+
+# Power queries with v2 syntax
+tp query Bug -w 'entityState.isFinal!=true' -s 'id,name,priority.name as priority'
+tp query Assignable -s 'id,name,entityType.name as type,entityState.name as state' \
+  -w 'teamIteration!=null'
+tp query Feature -s 'id,name,userStories.count as total,userStories.where(entityState.isFinal==true).count as done'
 
 # Raw API access
 tp api GET '/api/v1/Users?take=10'
