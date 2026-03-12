@@ -1,6 +1,6 @@
-# tp — Targetprocess CLI
+# tp — Targetprocess CLI & Go SDK
 
-A fast, no-nonsense command-line client for [Targetprocess](https://www.targetprocess.com/). Query work items, manage entities, and explore your instance — all from the terminal.
+A fast, no-nonsense command-line client and Go library for [Targetprocess](https://www.targetprocess.com/). Query work items, manage entities, and explore your instance — from the terminal or from Go code.
 
 Built with LLM agents in mind. Works great with humans too.
 
@@ -89,6 +89,139 @@ This CLI was designed to be used by AI agents (Claude, GPT, etc.) as a tool for 
 - **Error messages are teaching moments.** Common query mistakes (like writing `is null` instead of `==null`) get caught with suggestions for the correct syntax.
 - **`--dry-run`** on queries shows the URL that would be called without executing it — useful for verification steps.
 - **JSON output everywhere** makes parsing straightforward.
+
+## Go SDK
+
+The module doubles as an importable Go library with a typed client, generics, and structured entity types.
+
+```bash
+go get github.com/lifedraft/targetprocess-cli@latest
+```
+
+```go
+import tp "github.com/lifedraft/targetprocess-cli"
+```
+
+### Quick start
+
+```go
+// Create a client from config (~/.config/tp/config.yaml, env vars, keyring)
+c, err := tp.NewClientFromConfig()
+
+// Or provide credentials directly
+c, err := tp.NewClient("yourcompany.tpondemand.com", "your-token")
+```
+
+### Three layers of type safety
+
+**1. Typed CRUD with known entities** — full struct types, compile-time safety:
+
+```go
+// Get a bug by ID — returns *tp.Bug with typed fields
+bug, err := tp.Get[tp.Bug](ctx, c, 12345)
+fmt.Println(bug.Name)              // string
+fmt.Println(bug.EntityState.Name)  // "Open"
+fmt.Println(bug.Severity.Name)     // "Critical"
+
+// Search for user stories
+stories, err := tp.Search[tp.UserStory](ctx, c, "Project.Name=='MyProject'",
+    tp.WithTake(10),
+    tp.WithOrderBy("createDate desc"),
+)
+
+// Create and update
+story, err := tp.Create[tp.UserStory](ctx, c, tp.Entity{"Name": "New feature", "Project": map[string]any{"Id": 42}})
+updated, err := tp.Update[tp.Feature](ctx, c, 789, tp.Entity{"Name": "Renamed"})
+```
+
+Available entity types: `UserStory`, `Bug`, `Task`, `Feature`, `Epic`, `Request`, `Comment`.
+
+**2. Typed v2 queries with custom structs** — define your own result shape:
+
+```go
+type SprintItem struct {
+    ID       int     `json:"id"`
+    Name     string  `json:"name"`
+    State    string  `json:"state"`
+    Effort   float64 `json:"effort"`
+    Assignee string  `json:"assignee"`
+}
+
+result, err := tp.Query[SprintItem](ctx, c, "UserStory", tp.QueryParams{
+    Where:  "TeamIteration.Name=='Sprint 42'",
+    Select: "id,name,entityState.name as state,effort,owner.fullName as assignee",
+})
+for _, item := range result.Items {
+    fmt.Println(item.Name, item.State)  // fully typed
+}
+fmt.Println(result.Next)  // pagination URL (if any)
+```
+
+**3. Untyped for dynamic use** — `map[string]any` when you don't know the type:
+
+```go
+entity, err := c.Get(ctx, "UserStory", 12345)
+fmt.Println(entity["Name"])
+
+items, err := c.Search(ctx, "Assignable", "name.contains('login')",
+    tp.WithSelect("id", "name", "entityType.name as type"),
+    tp.WithTake(50),
+)
+```
+
+### Error handling
+
+```go
+var apiErr *tp.APIError
+if errors.As(err, &apiErr) {
+    fmt.Println(apiErr.StatusCode)  // 404
+    fmt.Println(apiErr.Body)        // raw error body
+}
+```
+
+### Entity type resolution
+
+```go
+// Resolve aliases, plurals, case-insensitive
+tp.NormalizeType("stories")    // "UserStory"
+tp.NormalizeType("us")         // "UserStory"
+tp.NormalizeType("bug")        // "Bug"
+tp.NormalizeType("sprint")     // "Iteration"
+
+// Resolve type from an ID via the API
+typeName, err := c.ResolveType(ctx, 12345)  // "UserStory"
+```
+
+### Metadata
+
+```go
+// List all entity types
+types, err := c.MetaTypes(ctx)
+for _, t := range types {
+    fmt.Println(t.Name, t.Description)
+}
+
+// Inspect fields of an entity type
+fields, err := c.MetaFields(ctx, "UserStory")
+for _, f := range fields {
+    fmt.Printf("%s (%s, %s)\n", f.Name, f.Type, f.Kind)  // "Id (Int32, value)"
+}
+```
+
+### Raw API access
+
+```go
+data, err := c.Raw(ctx, "GET", "/api/v1/Users?take=5", nil)
+```
+
+### Client options
+
+```go
+c, err := tp.NewClient("domain.tpondemand.com", "token",
+    tp.WithHTTPClient(customHTTPClient),
+    tp.WithDebug(true),
+)
+```
 
 ## Uninstall
 
