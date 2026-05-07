@@ -27,7 +27,9 @@ Search entities using v2 API.
   -s, --select    Fields to return (e.g. 'id,name,entityState.name as state')
   --preset        Use a preset filter (run 'tp presets' to list)
   -t, --take      Max results (default 25, max 1000)
-  --order-by      Sort expression (e.g. 'createDate desc')
+  --skip          Skip N results
+  --order         Sort expression (e.g. 'createDate desc')
+  --dry-run       Show URL without executing
 
 ### tp create <type> <name> --project-id <ID>
 Create a new entity.
@@ -189,7 +191,9 @@ func jsonCheatsheet() map[string]any {
 					{"name": "-s, --select", "usage": "Fields to return"},
 					{"name": "--preset", "usage": "Use a preset filter"},
 					{"name": "-t, --take", "usage": "Max results (default 25, max 1000)"},
-					{"name": "--order-by", "usage": "Sort expression"},
+					{"name": "--skip", "usage": "Skip N results"},
+					{"name": "--order", "usage": "Sort expression (alias: --order-by)"},
+					{"name": "--dry-run", "usage": "Show URL without executing"},
 				},
 			},
 			{

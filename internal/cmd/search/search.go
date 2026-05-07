@@ -34,10 +34,16 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
   tp search UserStory --preset open
 
   # With sorting
-  tp search Bug -w 'priority.name=="High"' --order-by 'createDate desc' --take 50
+  tp search Bug -w 'priority.name=="High"' --order 'createDate desc' --take 50
+
+  # Inspect the URL without executing
+  tp search UserStory --preset open --dry-run
 
   # Recently modified items
-  tp search Assignable --preset recentActivity`,
+  tp search Assignable --preset recentActivity
+
+  # Pagination
+  tp search UserStory --preset open --take 50 --skip 50`,
 		Flags: []cli.Flag{
 			cmdutil.OutputFlag(),
 			&cli.StringFlag{
@@ -60,9 +66,19 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 				Value:   25,
 				Usage:   "Max number of results to return (max 1000)",
 			},
+			&cli.IntFlag{
+				Name:  "skip",
+				Value: 0,
+				Usage: "Number of results to skip",
+			},
 			&cli.StringFlag{
-				Name:  "order-by",
-				Usage: "Sort expression (e.g. 'createDate desc')",
+				Name:    "order",
+				Aliases: []string{"order-by"},
+				Usage:   "Sort expression (e.g. 'createDate desc')",
+			},
+			&cli.BoolFlag{
+				Name:  "dry-run",
+				Usage: "Show the URL that would be called without executing",
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -84,7 +100,8 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 			where := cmd.String("where")
 			selectExpr := cmd.String("select")
 			take := cmd.Int("take")
-			orderBy := cmd.String("order-by")
+			skip := cmd.Int("skip")
+			orderBy := cmd.String("order")
 
 			// Apply preset if specified
 			if presetName := cmd.String("preset"); presetName != "" {
@@ -105,6 +122,9 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 			if take < 0 || take > 1000 {
 				return fmt.Errorf("take must be between 0 and 1000, got %d", take)
 			}
+			if skip < 0 {
+				return fmt.Errorf("skip must be non-negative, got %d", skip)
+			}
 
 			// Warn about dot-paths missing 'as' aliases (silently dropped by API)
 			if warn := api.WarnSelectDotPaths(selectExpr); warn != "" {
@@ -116,6 +136,12 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 				Select:  selectExpr,
 				OrderBy: orderBy,
 				Take:    take,
+				Skip:    skip,
+			}
+
+			if cmd.Bool("dry-run") {
+				fmt.Fprintln(os.Stdout, client.BuildV2URL(entityType, params))
+				return nil
 			}
 
 			data, err := client.QueryV2(ctx, entityType, params)
