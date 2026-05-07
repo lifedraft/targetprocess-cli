@@ -22,6 +22,30 @@ var validEntityType = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*$`)
 
 const maxResponseSize = 50 * 1024 * 1024 // 50 MB
 
+// userAgent is the User-Agent header sent with every request. It defaults
+// to a development sentinel and is overridden at startup via SetUserAgent
+// using the version baked in at build time (see -ldflags=-X main.version=...).
+var userAgent = "tp-cli/dev"
+
+// SetUserAgent overrides the User-Agent string used by all clients in this
+// process. Pass the binary's build version (e.g. "0.5.0"); a leading "v" is
+// trimmed and an empty/dev value falls back to the default.
+func SetUserAgent(version string) {
+	v := strings.TrimSpace(version)
+	v = strings.TrimPrefix(v, "v")
+	if v == "" || v == "dev" {
+		userAgent = "tp-cli/dev"
+		return
+	}
+	userAgent = "tp-cli/" + v
+}
+
+// UserAgent returns the User-Agent string currently in use. Exposed primarily
+// for tests and bug-report diagnostics.
+func UserAgent() string {
+	return userAgent
+}
+
 // Entity represents a generic TP entity as a flexible map.
 type Entity = map[string]any
 
@@ -85,7 +109,7 @@ func (c *Client) request(ctx context.Context, method, fullURL string, body io.Re
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	req.Header.Set("User-Agent", "tp-cli/0.1.0")
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := c.HTTPClient.Do(req) //nolint:gosec // URL is constructed from configured base URL + API path
 	if err != nil {

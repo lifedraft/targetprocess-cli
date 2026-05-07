@@ -10,6 +10,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/lifedraft/targetprocess-cli/internal/api"
 	apicmd "github.com/lifedraft/targetprocess-cli/internal/cmd/api"
 	"github.com/lifedraft/targetprocess-cli/internal/cmd/bugreport"
 	cheatsht "github.com/lifedraft/targetprocess-cli/internal/cmd/cheatsheet"
@@ -32,6 +33,8 @@ func main() {
 }
 
 func run() (exitCode int) {
+	api.SetUserAgent(version)
+
 	f := &cmdutil.Factory{}
 
 	defer func() {
