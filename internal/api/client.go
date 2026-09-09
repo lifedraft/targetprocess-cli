@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -97,6 +99,17 @@ func (c *Client) buildURL(path string, params url.Values) string {
 }
 
 func (c *Client) request(ctx context.Context, method, fullURL string, body io.Reader) ([]byte, error) {
+	contentType := ""
+	if body != nil {
+		contentType = "application/json"
+	}
+	return c.requestWithContentType(ctx, method, fullURL, contentType, body)
+}
+
+// requestWithContentType performs an HTTP request, allowing the caller to set
+// an explicit Content-Type (e.g. a multipart boundary for file uploads). An
+// empty contentType omits the header.
+func (c *Client) requestWithContentType(ctx context.Context, method, fullURL, contentType string, body io.Reader) ([]byte, error) {
 	if c.Debug {
 		fmt.Fprintf(os.Stderr, "DEBUG: %s %s\n", method, redactToken(fullURL)) //nolint:gosec // debug log to stderr, not web output
 	}
@@ -106,8 +119,8 @@ func (c *Client) request(ctx context.Context, method, fullURL string, body io.Re
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
 	}
 	req.Header.Set("User-Agent", userAgent)
 
@@ -306,6 +319,62 @@ func (c *Client) GetTypeMeta(ctx context.Context, entityType string) ([]byte, er
 	params.Set("access_token", c.Token)
 	fullURL := fmt.Sprintf("%s/api/v1/%ss/meta?%s", c.BaseURL, entityType, params.Encode())
 	return c.request(ctx, http.MethodGet, fullURL, nil)
+}
+
+// UploadAttachment uploads one or more files to an entity via the legacy
+// UploadFile.ashx endpoint. Targetprocess's /api/v1/Attachments endpoint only
+// accepts attachment metadata (JSON/XML) and rejects binary/multipart bodies;
+// the actual file bytes must go through UploadFile.ashx as multipart/form-data.
+// generalID links the attachment(s) to a general entity (User Story, Bug,
+// Test Case Run, etc.). An optional message is stored with the attachment.
+func (c *Client) UploadAttachment(ctx context.Context, generalID int, files []string, message string) ([]byte, error) {
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no files provided")
+	}
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	if err := writer.WriteField("generalid", strconv.Itoa(generalID)); err != nil {
+		return nil, fmt.Errorf("writing generalid field: %w", err)
+	}
+	if message != "" {
+		if err := writer.WriteField("message", message); err != nil {
+			return nil, fmt.Errorf("writing message field: %w", err)
+		}
+	}
+	for _, filename := range files {
+		if err := addFilePart(writer, filename); err != nil {
+			return nil, err
+		}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("finalizing multipart body: %w", err)
+	}
+
+	params := url.Values{}
+	params.Set("access_token", c.Token)
+	fullURL := fmt.Sprintf("%s/UploadFile.ashx?%s", c.BaseURL, params.Encode())
+	// Pass a *bytes.Reader so retryablehttp can rewind the body on retries.
+	return c.requestWithContentType(ctx, http.MethodPost, fullURL, writer.FormDataContentType(), bytes.NewReader(buf.Bytes()))
+}
+
+// addFilePart streams a single file into the multipart writer under the "file"
+// field, using the file's base name.
+func addFilePart(writer *multipart.Writer, filename string) error {
+	file, err := os.Open(filename) //nolint:gosec // user-provided path to upload is intentional
+	if err != nil {
+		return fmt.Errorf("opening file %q: %w", filename, err)
+	}
+	defer file.Close()
+
+	part, err := writer.CreateFormFile("file", filepath.Base(filename))
+	if err != nil {
+		return fmt.Errorf("creating form file for %q: %w", filename, err)
+	}
+	if _, err := io.Copy(part, file); err != nil {
+		return fmt.Errorf("copying file %q: %w", filename, err)
+	}
+	return nil
 }
 
 // Raw makes a raw API request. The path can include query parameters.
