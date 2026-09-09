@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 
@@ -19,8 +21,8 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 	return &cli.Command{
 		Name:  "testplan",
 		Usage: "Manage test plans",
-		UsageText: `# Create a test plan for a story/bug that doesn't have one
-  tp testplan create 363376
+		UsageText: `# Create a test plan for a story/bug (with a test case, linked to a release plan)
+  tp testplan create 363376 --release-plan 365157
 
   # Add child test plans to a parent test plan
   tp testplan add 365157 347067 360449 361777
@@ -35,24 +37,49 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 	}
 }
 
+// stripHTML removes HTML tags and decodes common HTML entities.
+func stripHTML(s string) string {
+	// Remove <!--markdown--> prefix used by TP
+	s = strings.TrimPrefix(s, "<!--markdown-->")
+	// Strip all HTML tags
+	re := regexp.MustCompile(`<[^>]+>`)
+	s = re.ReplaceAllString(s, " ")
+	// Decode common entities
+	replacer := strings.NewReplacer(
+		"&amp;", "&", "&lt;", "<", "&gt;", ">",
+		"&quot;", `"`, "&#58;", ":", "&#47;", "/",
+		"&#91;", "[", "&#93;", "]", "&#40;", "(",
+		"&#41;", ")", "&nbsp;", " ",
+	)
+	s = replacer.Replace(s)
+	// Collapse whitespace
+	wsRe := regexp.MustCompile(`\s+`)
+	s = strings.TrimSpace(wsRe.ReplaceAllString(s, " "))
+	return s
+}
+
 // newCreateCmd creates a TestPlan for a story/bug that doesn't have one yet,
-// linking it bidirectionally via LinkedGeneral (on create) and LinkedTestPlan
-// (on the entity). The entity type is auto-detected.
+// adds a test case derived from the entity content, links bidirectionally,
+// and optionally attaches the new plan to a release test plan.
 func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 	return &cli.Command{
 		Name:      "create",
-		Usage:     "Create a test plan for a story or bug and link it bidirectionally",
+		Usage:     "Create a test plan for a story or bug, add a test case, and link it bidirectionally",
 		ArgsUsage: "<entity-id>",
-		UsageText: `# Create a test plan for a story/bug
+		UsageText: `# Create and attach to a release test plan
+  tp testplan create 363376 --release-plan 365157
+
+  # Create standalone (no release plan)
   tp testplan create 363376`,
 		Flags: []cli.Flag{
 			cmdutil.OutputFlag(),
 			&cli.StringFlag{Name: "name", Usage: "Test plan name (defaults to the entity name)"},
+			&cli.IntFlag{Name: "release-plan", Usage: "Release test plan ID to attach this plan to as a child"},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			args := cmd.Args().Slice()
 			if len(args) < 1 {
-				return errors.New("usage: tp testplan create <entity-id>")
+				return errors.New("usage: tp testplan create <entity-id> [--release-plan <id>]")
 			}
 
 			entityID, err := strconv.Atoi(args[0])
@@ -65,18 +92,19 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 				return err
 			}
 
-			// Auto-detect entity type and fetch name.
+			// Auto-detect entity type.
 			entityType, err := client.ResolveEntityType(ctx, entityID)
 			if err != nil {
 				return fmt.Errorf("resolving entity type for %d: %w", entityID, err)
 			}
 
-			entity, err := client.GetEntity(ctx, entityType, entityID, []string{"Name", "Project", "LinkedTestPlan"})
+			// Fetch entity including Description.
+			entity, err := client.GetEntity(ctx, entityType, entityID, []string{"Name", "Project", "LinkedTestPlan", "Description"})
 			if err != nil {
 				return fmt.Errorf("fetching entity %d: %w", entityID, err)
 			}
 
-			// Check if it already has a test plan.
+			// Guard: already has a test plan.
 			if existing, ok := entity["LinkedTestPlan"]; ok && existing != nil {
 				if m, ok := existing.(map[string]any); ok && m["Id"] != nil {
 					return fmt.Errorf("entity %d already has a linked test plan (ID %v — use 'tp testplan add' to add it as a child)", entityID, m["Id"])
@@ -102,7 +130,7 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 				return errors.New("could not determine project ID from entity")
 			}
 
-			// Create the TestPlan, linking to the entity via LinkedGeneral.
+			// Create the TestPlan linked to the entity.
 			plan, err := client.CreateEntity(ctx, "TestPlan", map[string]any{
 				"Name":          planName,
 				"Project":       map[string]any{"Id": projectID},
@@ -111,22 +139,56 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 			if err != nil {
 				return fmt.Errorf("creating test plan: %w", err)
 			}
-
 			planID := int(plan["Id"].(float64))
+			fmt.Printf("Created TestPlan %d %q\n", planID, planName)
 
 			// Link back from the entity to the test plan.
-			_, err = client.UpdateEntity(ctx, entityType, entityID, map[string]any{
+			if _, err = client.UpdateEntity(ctx, entityType, entityID, map[string]any{
 				"LinkedTestPlan": map[string]any{"Id": planID},
+			}); err != nil {
+				return fmt.Errorf("linking test plan back to %s %d: %w", entityType, entityID, err)
+			}
+			fmt.Printf("Linked to %s %d\n", entityType, entityID)
+
+			// Create a test case from the entity content.
+			tcDesc := ""
+			if raw, ok := entity["Description"].(string); ok && raw != "" {
+				tcDesc = stripHTML(raw)
+				if len(tcDesc) > 2000 {
+					tcDesc = tcDesc[:2000] + "…"
+				}
+			}
+			tc, err := client.CreateEntity(ctx, "TestCase", map[string]any{
+				"Name":        planName,
+				"Description": tcDesc,
+				"Project":     map[string]any{"Id": projectID},
 			})
 			if err != nil {
-				return fmt.Errorf("linking test plan back to entity: %w", err)
+				return fmt.Errorf("creating test case: %w", err)
+			}
+			tcID := int(tc["Id"].(float64))
+
+			// Add the test case to the test plan.
+			if _, err = client.UpdateEntity(ctx, "TestPlan", planID, map[string]any{
+				"TestCases": []map[string]any{{"Id": tcID}},
+			}); err != nil {
+				return fmt.Errorf("adding test case %d to test plan: %w", tcID, err)
+			}
+			fmt.Printf("Created TestCase %d and added to plan\n", tcID)
+
+			// Optionally attach to a release test plan.
+			if releasePlanID := cmd.Int("release-plan"); releasePlanID > 0 {
+				if _, err = client.UpdateEntity(ctx, "TestPlan", releasePlanID, map[string]any{
+					"ChildTestPlans": []map[string]any{{"Id": planID}},
+				}); err != nil {
+					return fmt.Errorf("attaching to release test plan %d: %w", releasePlanID, err)
+				}
+				fmt.Printf("Attached as child of release TestPlan %d\n", releasePlanID)
 			}
 
 			if cmdutil.IsJSON(cmd) {
 				return output.PrintJSON(os.Stdout, plan)
 			}
-
-			fmt.Printf("Created TestPlan %d %q and linked to %s %d\n", planID, planName, entityType, entityID)
 			return nil
 		},
 	}
@@ -225,7 +287,6 @@ func newListChildrenCmd(f *cmdutil.Factory) *cli.Command {
 				return err
 			}
 
-			// Parse and print table
 			var resp struct {
 				Items []struct {
 					ID   int    `json:"Id"`
