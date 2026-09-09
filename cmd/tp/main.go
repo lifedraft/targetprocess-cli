@@ -12,6 +12,7 @@ import (
 
 	"github.com/lifedraft/targetprocess-cli/internal/api"
 	apicmd "github.com/lifedraft/targetprocess-cli/internal/cmd/api"
+	attachcmd "github.com/lifedraft/targetprocess-cli/internal/cmd/attach"
 	"github.com/lifedraft/targetprocess-cli/internal/cmd/bugreport"
 	cheatsht "github.com/lifedraft/targetprocess-cli/internal/cmd/cheatsheet"
 	"github.com/lifedraft/targetprocess-cli/internal/cmd/commentcmd"
@@ -22,6 +23,7 @@ import (
 	querycmd "github.com/lifedraft/targetprocess-cli/internal/cmd/query"
 	searchcmd "github.com/lifedraft/targetprocess-cli/internal/cmd/search"
 	showcmd "github.com/lifedraft/targetprocess-cli/internal/cmd/show"
+	testplancmd "github.com/lifedraft/targetprocess-cli/internal/cmd/testplan"
 	updatecmd "github.com/lifedraft/targetprocess-cli/internal/cmd/update"
 	"github.com/lifedraft/targetprocess-cli/internal/cmdutil"
 )
@@ -49,6 +51,8 @@ func run() (exitCode int) {
 	createCmd := createcmd.NewCmd(f)
 	updateCmd := updatecmd.NewCmd(f)
 	commentCmd := commentcmd.NewCmd(f)
+	attachCmd := attachcmd.NewCmd(f)
+	testplanCmd := testplancmd.NewCmd(f)
 
 	root := &cli.Command{
 		Name:    "tp",
@@ -89,6 +93,8 @@ func run() (exitCode int) {
 			createCmd,
 			updateCmd,
 			commentCmd,
+			attachCmd,
+			testplanCmd,
 			presets.NewCmd(),
 			querycmd.NewCmd(f),
 			inspect.NewCmd(f),
@@ -106,6 +112,7 @@ func run() (exitCode int) {
 			hiddenAlias("new", "create", createCmd),
 			hiddenAlias("add", "create", createCmd),
 			hiddenAlias("comments", "comment", commentCmd),
+			hiddenAlias("upload", "attach", attachCmd),
 		},
 	}
 
