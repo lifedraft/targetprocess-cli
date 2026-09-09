@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"os"
 	"regexp"
 	"strconv"
@@ -37,25 +38,97 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 	}
 }
 
-// stripHTML removes HTML tags and decodes common HTML entities.
-func stripHTML(s string) string {
-	// Remove <!--markdown--> prefix used by TP
+// htmlToMarkdown converts an HTML snippet (as returned by TP) into clean
+// markdown text suitable for a test case description.
+func htmlToMarkdown(s string) string {
+	// Remove <!--markdown--> prefix used by TP.
 	s = strings.TrimPrefix(s, "<!--markdown-->")
-	// Strip all HTML tags
-	re := regexp.MustCompile(`<[^>]+>`)
-	s = re.ReplaceAllString(s, " ")
-	// Decode common entities
-	replacer := strings.NewReplacer(
-		"&amp;", "&", "&lt;", "<", "&gt;", ">",
-		"&quot;", `"`, "&#58;", ":", "&#47;", "/",
-		"&#91;", "[", "&#93;", "]", "&#40;", "(",
-		"&#41;", ")", "&nbsp;", " ",
-	)
-	s = replacer.Replace(s)
-	// Collapse whitespace
-	wsRe := regexp.MustCompile(`\s+`)
-	s = strings.TrimSpace(wsRe.ReplaceAllString(s, " "))
-	return s
+
+	// Decode all HTML entities first so href/text values are readable.
+	s = html.UnescapeString(s)
+	s = strings.ReplaceAll(s, "\u00a0", " ")
+
+	// Convert <a href="url">text</a>:
+	//   same text as href → bare URL
+	//   different text    → [text](url)
+	linkRe := regexp.MustCompile(`(?is)<a[^>]*\shref="([^"]*)"[^>]*>(.*?)</a>`)
+	strTags := regexp.MustCompile(`<[^>]+>`)
+	s = linkRe.ReplaceAllStringFunc(s, func(m string) string {
+		sub := linkRe.FindStringSubmatch(m)
+		if len(sub) < 3 {
+			return m
+		}
+		href := strings.TrimSpace(sub[1])
+		text := strings.TrimSpace(strTags.ReplaceAllString(sub[2], ""))
+		if text == "" || text == href {
+			return href
+		}
+		return fmt.Sprintf("[%s](%s)", text, href)
+	})
+
+	// Convert headings.
+	for i := 6; i >= 1; i-- {
+		hRe := regexp.MustCompile(fmt.Sprintf(`(?is)<h%d[^>]*>(.*?)</h%d>`, i, i))
+		prefix := strings.Repeat("#", i)
+		s = hRe.ReplaceAllStringFunc(s, func(m string) string {
+			sub := hRe.FindStringSubmatch(m)
+			text := strings.TrimSpace(strTags.ReplaceAllString(sub[1], ""))
+			return fmt.Sprintf("\n%s %s\n", prefix, text)
+		})
+	}
+
+	// Convert <hr> to a divider.
+	s = regexp.MustCompile(`(?i)<hr[^>]*/?>`).ReplaceAllString(s, "\n")
+
+	// Convert <ol> list items to numbered markdown.
+	olRe := regexp.MustCompile(`(?is)<ol[^>]*>(.*?)</ol>`)
+	liRe := regexp.MustCompile(`(?is)<li[^>]*>(.*?)</li>`)
+	s = olRe.ReplaceAllStringFunc(s, func(m string) string {
+		inner := olRe.FindStringSubmatch(m)[1]
+		counter := 0
+		result := liRe.ReplaceAllStringFunc(inner, func(li string) string {
+			counter++
+			content := strings.TrimSpace(strTags.ReplaceAllString(liRe.FindStringSubmatch(li)[1], ""))
+			return fmt.Sprintf("\n%d. %s", counter, content)
+		})
+		return result + "\n"
+	})
+
+	// Convert <ul> list items to bullet markdown.
+	ulRe := regexp.MustCompile(`(?is)<ul[^>]*>(.*?)</ul>`)
+	s = ulRe.ReplaceAllStringFunc(s, func(m string) string {
+		inner := ulRe.FindStringSubmatch(m)[1]
+		result := liRe.ReplaceAllStringFunc(inner, func(li string) string {
+			content := strings.TrimSpace(strTags.ReplaceAllString(liRe.FindStringSubmatch(li)[1], ""))
+			return fmt.Sprintf("\n- %s", content)
+		})
+		return result + "\n"
+	})
+
+	// Inline formatting.
+	s = regexp.MustCompile(`(?is)<(em|i)[^>]*>(.*?)</(em|i)>`).ReplaceAllString(s, "*$2*")
+	s = regexp.MustCompile(`(?is)<(strong|b)[^>]*>(.*?)</(strong|b)>`).ReplaceAllString(s, "**$2**")
+	s = regexp.MustCompile(`(?is)<code[^>]*>(.*?)</code>`).ReplaceAllString(s, "`$1`")
+
+	// Remaining block elements → newline.
+	s = regexp.MustCompile(`(?i)</?(?:p|div|br|tr)[^>]*/?>`).ReplaceAllString(s, "\n")
+
+	// Strip any remaining tags.
+	s = strTags.ReplaceAllString(s, "")
+
+	// Collapse spaces per line.
+	spaceRe := regexp.MustCompile(` {2,}`)
+	lines := strings.Split(s, "\n")
+	var out []string
+	for _, line := range lines {
+		out = append(out, strings.TrimSpace(spaceRe.ReplaceAllString(line, " ")))
+	}
+	s = strings.Join(out, "\n")
+
+	// Collapse 3+ blank lines into 2.
+	s = regexp.MustCompile(`\n{3,}`).ReplaceAllString(s, "\n\n")
+
+	return strings.TrimSpace(s)
 }
 
 // newCreateCmd creates a TestPlan for a story/bug that doesn't have one yet,
@@ -153,9 +226,9 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 			// Create a test case from the entity content.
 			tcDesc := ""
 			if raw, ok := entity["Description"].(string); ok && raw != "" {
-				tcDesc = stripHTML(raw)
-				if len(tcDesc) > 2000 {
-					tcDesc = tcDesc[:2000] + "…"
+				tcDesc = "<!--markdown-->\n" + htmlToMarkdown(raw)
+				if len(tcDesc) > 4000 {
+					tcDesc = tcDesc[:4000] + "\n…"
 				}
 			}
 			tc, err := client.CreateEntity(ctx, "TestCase", map[string]any{
