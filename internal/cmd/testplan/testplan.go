@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"os"
-	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/urfave/cli/v3"
 
@@ -22,7 +19,7 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 	return &cli.Command{
 		Name:  "testplan",
 		Usage: "Manage test plans",
-		UsageText: `# Create a test plan for a story/bug (with a test case, linked to a release plan)
+		UsageText: `# Create a test plan for a story/bug and attach to release plan
   tp testplan create 363376 --release-plan 365157
 
   # Add child test plans to a parent test plan
@@ -38,112 +35,23 @@ func NewCmd(f *cmdutil.Factory) *cli.Command {
 	}
 }
 
-// htmlToMarkdown converts an HTML snippet (as returned by TP) into clean
-// markdown text suitable for a test case description.
-func htmlToMarkdown(s string) string {
-	// Remove <!--markdown--> prefix used by TP.
-	s = strings.TrimPrefix(s, "<!--markdown-->")
-
-	// Decode all HTML entities first so href/text values are readable.
-	s = html.UnescapeString(s)
-	s = strings.ReplaceAll(s, "\u00a0", " ")
-
-	// Convert <a href="url">text</a>:
-	//   same text as href → bare URL
-	//   different text    → [text](url)
-	linkRe := regexp.MustCompile(`(?is)<a[^>]*\shref="([^"]*)"[^>]*>(.*?)</a>`)
-	strTags := regexp.MustCompile(`<[^>]+>`)
-	s = linkRe.ReplaceAllStringFunc(s, func(m string) string {
-		sub := linkRe.FindStringSubmatch(m)
-		if len(sub) < 3 {
-			return m
-		}
-		href := strings.TrimSpace(sub[1])
-		text := strings.TrimSpace(strTags.ReplaceAllString(sub[2], ""))
-		if text == "" || text == href {
-			return href
-		}
-		return fmt.Sprintf("[%s](%s)", text, href)
-	})
-
-	// Convert headings.
-	for i := 6; i >= 1; i-- {
-		hRe := regexp.MustCompile(fmt.Sprintf(`(?is)<h%d[^>]*>(.*?)</h%d>`, i, i))
-		prefix := strings.Repeat("#", i)
-		s = hRe.ReplaceAllStringFunc(s, func(m string) string {
-			sub := hRe.FindStringSubmatch(m)
-			text := strings.TrimSpace(strTags.ReplaceAllString(sub[1], ""))
-			return fmt.Sprintf("\n%s %s\n", prefix, text)
-		})
-	}
-
-	// Convert <hr> to a divider.
-	s = regexp.MustCompile(`(?i)<hr[^>]*/?>`).ReplaceAllString(s, "\n")
-
-	// Convert <ol> list items to numbered markdown.
-	olRe := regexp.MustCompile(`(?is)<ol[^>]*>(.*?)</ol>`)
-	liRe := regexp.MustCompile(`(?is)<li[^>]*>(.*?)</li>`)
-	s = olRe.ReplaceAllStringFunc(s, func(m string) string {
-		inner := olRe.FindStringSubmatch(m)[1]
-		counter := 0
-		result := liRe.ReplaceAllStringFunc(inner, func(li string) string {
-			counter++
-			content := strings.TrimSpace(strTags.ReplaceAllString(liRe.FindStringSubmatch(li)[1], ""))
-			return fmt.Sprintf("\n%d. %s", counter, content)
-		})
-		return result + "\n"
-	})
-
-	// Convert <ul> list items to bullet markdown.
-	ulRe := regexp.MustCompile(`(?is)<ul[^>]*>(.*?)</ul>`)
-	s = ulRe.ReplaceAllStringFunc(s, func(m string) string {
-		inner := ulRe.FindStringSubmatch(m)[1]
-		result := liRe.ReplaceAllStringFunc(inner, func(li string) string {
-			content := strings.TrimSpace(strTags.ReplaceAllString(liRe.FindStringSubmatch(li)[1], ""))
-			return fmt.Sprintf("\n- %s", content)
-		})
-		return result + "\n"
-	})
-
-	// Inline formatting.
-	s = regexp.MustCompile(`(?is)<(em|i)[^>]*>(.*?)</(em|i)>`).ReplaceAllString(s, "*$2*")
-	s = regexp.MustCompile(`(?is)<(strong|b)[^>]*>(.*?)</(strong|b)>`).ReplaceAllString(s, "**$2**")
-	s = regexp.MustCompile(`(?is)<code[^>]*>(.*?)</code>`).ReplaceAllString(s, "`$1`")
-
-	// Remaining block elements → newline.
-	s = regexp.MustCompile(`(?i)</?(?:p|div|br|tr)[^>]*/?>`).ReplaceAllString(s, "\n")
-
-	// Strip any remaining tags.
-	s = strTags.ReplaceAllString(s, "")
-
-	// Collapse spaces per line.
-	spaceRe := regexp.MustCompile(` {2,}`)
-	lines := strings.Split(s, "\n")
-	var out []string
-	for _, line := range lines {
-		out = append(out, strings.TrimSpace(spaceRe.ReplaceAllString(line, " ")))
-	}
-	s = strings.Join(out, "\n")
-
-	// Collapse 3+ blank lines into 2.
-	s = regexp.MustCompile(`\n{3,}`).ReplaceAllString(s, "\n\n")
-
-	return strings.TrimSpace(s)
-}
-
-// newCreateCmd creates a TestPlan for a story/bug that doesn't have one yet,
-// adds a test case derived from the entity content, links bidirectionally,
-// and optionally attaches the new plan to a release test plan.
+// newCreateCmd creates a TestPlan for a story/bug that doesn't have one yet.
+// It creates a placeholder TestCase (agent fills description afterwards),
+// links the plan bidirectionally to the entity, and optionally attaches it
+// to a release test plan as a child.
 func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 	return &cli.Command{
 		Name:      "create",
-		Usage:     "Create a test plan for a story or bug, add a test case, and link it bidirectionally",
+		Usage:     "Create a test plan and placeholder test case for a story or bug",
 		ArgsUsage: "<entity-id>",
 		UsageText: `# Create and attach to a release test plan
   tp testplan create 363376 --release-plan 365157
 
   # Create standalone (no release plan)
-  tp testplan create 363376`,
+  tp testplan create 363376
+
+  # Get structured output with plan/case IDs
+  tp testplan create 363376 --release-plan 365157 --output json`,
 		Flags: []cli.Flag{
 			cmdutil.OutputFlag(),
 			&cli.StringFlag{Name: "name", Usage: "Test plan name (defaults to the entity name)"},
@@ -171,8 +79,8 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 				return fmt.Errorf("resolving entity type for %d: %w", entityID, err)
 			}
 
-			// Fetch entity including Description.
-			entity, err := client.GetEntity(ctx, entityType, entityID, []string{"Name", "Project", "LinkedTestPlan", "Description"})
+			// Fetch entity name and project — description is handled by the agent.
+			entity, err := client.GetEntity(ctx, entityType, entityID, []string{"Name", "Project", "LinkedTestPlan"})
 			if err != nil {
 				return fmt.Errorf("fetching entity %d: %w", entityID, err)
 			}
@@ -223,18 +131,11 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 			}
 			fmt.Printf("Linked to %s %d\n", entityType, entityID)
 
-			// Create a test case from the entity content.
-			tcDesc := ""
-			if raw, ok := entity["Description"].(string); ok && raw != "" {
-				tcDesc = "<!--markdown-->\n" + htmlToMarkdown(raw)
-				if len(tcDesc) > 4000 {
-					tcDesc = tcDesc[:4000] + "\n…"
-				}
-			}
+			// Create a placeholder test case — the agent (writer) updates the
+			// description afterwards via: tp api POST '/api/v1/TestCases/{id}'
 			tc, err := client.CreateEntity(ctx, "TestCase", map[string]any{
-				"Name":        planName,
-				"Description": tcDesc,
-				"Project":     map[string]any{"Id": projectID},
+				"Name":    planName,
+				"Project": map[string]any{"Id": projectID},
 			})
 			if err != nil {
 				return fmt.Errorf("creating test case: %w", err)
@@ -260,7 +161,12 @@ func newCreateCmd(f *cmdutil.Factory) *cli.Command {
 			}
 
 			if cmdutil.IsJSON(cmd) {
-				return output.PrintJSON(os.Stdout, plan)
+				return output.PrintJSON(os.Stdout, map[string]any{
+					"testPlanId": planID,
+					"testCaseId": tcID,
+					"entityType": entityType,
+					"entityId":   entityID,
+				})
 			}
 			return nil
 		},
@@ -366,7 +272,7 @@ func newListChildrenCmd(f *cmdutil.Factory) *cli.Command {
 					Name string `json:"Name"`
 				} `json:"Items"`
 			}
-			if err := parseJSON(data, &resp); err != nil {
+			if err := json.Unmarshal(data, &resp); err != nil {
 				_, werr := os.Stdout.Write(data)
 				return werr
 			}
@@ -384,8 +290,4 @@ func newListChildrenCmd(f *cmdutil.Factory) *cli.Command {
 			return nil
 		},
 	}
-}
-
-func parseJSON(data []byte, v any) error {
-	return json.Unmarshal(data, v)
 }
